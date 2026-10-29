@@ -8,7 +8,6 @@ import pypdf
 
 app = FastAPI(title="StudyMaster API")
 
-# Abilita CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -106,7 +105,6 @@ def generate_quiz(req: TextRequest):
 
 @app.post("/api/map")
 def generate_map(req: TextRequest):
-    # Mappa concettuale dettagliata e ramificata stile Algor Education
     return {
         "title": "Mappa Concettuale: Le Tabelline",
         "nodes": [
