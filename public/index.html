@@ -1,163 +1,171 @@
-<script>
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      
-      document.getElementById(tabId).style.display = 'block';
-      btn.classList.add('active');
-    }
+:root {
+  --bg-red: #8b0000;
+  --header-red: #5c0000;
+  --card-bg: #ffffff;
+  --text-dark: #1f2937;
+  --primary-red: #d32f2f;
+  --primary-hover: #b71c1c;
+  --border-light: #fee2e2;
+}
 
-    async function handleFileUpload(input) {
-      if (!input.files || !input.files[0]) return;
-      const file = input.files[0];
-      document.getElementById('fileInfo').innerText = "⏳ Caricamento file: " + file.name;
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-red);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
 
-      const formData = new FormData();
-      formData.append("file", file);
+header {
+  width: 100%;
+  background: var(--header-red);
+  padding: 1rem 0;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
 
-      try {
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.text) {
-          document.getElementById('inputText').value = data.text;
-          document.getElementById('fileInfo').innerText = "✅ File caricato ed estratto con successo!";
-        }
-      } catch (e) {
-        document.getElementById('fileInfo').innerText = "✅ File selezionato: " + file.name;
-      }
-    }
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: white;
+}
 
-    // --- VOCE FLUIDA E NATURALE (Stile Live AI) ---
-    let isSpeaking = false;
-    let synth = window.speechSynthesis;
-    let selectedVoice = null;
+.logo-icon {
+  background: white;
+  color: var(--primary-red);
+  font-size: 22px;
+  font-weight: 800;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-    // Seleziona la voce italiana più fluida e naturale disponibile nel browser
-    function loadBestVoice() {
-      const voices = synth.getVoices();
-      // Cerca voci di alta qualità in italiano (es. Google italiano, Microsoft Natural o Siri)
-      selectedVoice = voices.find(v => v.lang.includes('it') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Siri'))) ||
-                      voices.find(v => v.lang.includes('it')) || voices[0];
-    }
+.logo-title {
+  font-size: 26px;
+  font-weight: 700;
+}
 
-    if (synth.onvoiceschanged !== undefined) {
-      synth.onvoiceschanged = loadBestVoice;
-    }
+.container {
+  width: 90%;
+  max-width: 800px;
+  margin: 25px auto;
+}
 
-    function toggleAudio() {
-      if (isSpeaking) {
-        synth.cancel();
-        isSpeaking = false;
-        document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale Fluida";
-        document.getElementById('audioStatus').innerText = "In pausa";
-      } else {
-        const text = document.getElementById('podcastScript').innerText;
-        if (!text) return;
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  margin-bottom: 20px;
+}
 
-        loadBestVoice();
-        const utter = new SpeechSynthesisUtterance(text);
-        if (selectedVoice) utter.voice = selectedVoice;
-        
-        utter.lang = 'it-IT';
-        utter.rate = 0.95; // Velocità leggermente più umana e rilassata
-        utter.pitch = 1.0; // Tono naturale
+h2 {
+  margin-top: 0;
+  color: var(--primary-red);
+  font-size: 20px;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 8px;
+}
 
-        utter.onend = () => {
-          isSpeaking = false;
-          document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale Fluida";
-          document.getElementById('audioStatus').innerText = "Riproduzione completata";
-        };
+.subtitle {
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 15px;
+}
 
-        synth.speak(utter);
-        isSpeaking = true;
-        document.getElementById('playAudioBtn').innerText = "⏸️ Pausa Audio";
-        document.getElementById('audioStatus').innerText = "🎙️ Conversazione vocale in corso...";
-      }
-    }
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+  margin-bottom: 15px;
+  font-family: inherit;
+}
 
-    async function generatePodcast() {
-      const text = document.getElementById('inputText').value;
-      document.getElementById('podcastOutput').style.display = 'block';
-      document.getElementById('podcastScript').innerText = "Creazione della presentazione audio dettagliata in corso...";
+textarea:focus {
+  border-color: var(--primary-red);
+  outline: none;
+}
 
-      try {
-        const res = await fetch('/api/podcast', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ text })
-        });
-        const data = await res.json();
-        document.getElementById('podcastScript').innerText = data.script;
-      } catch (e) {
-        document.getElementById('podcastScript').innerText = "Errore nella generazione del podcast.";
-      }
-    }
+.btn {
+  background-color: var(--primary-red);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    async function generateSummary() {
-      const text = document.getElementById('inputText').value;
-      const box = document.getElementById('summaryResult');
-      box.style.display = 'block';
-      box.innerText = "Creazione riassunto...";
+.btn:hover {
+  background-color: var(--primary-hover);
+}
 
-      try {
-        const res = await fetch('/api/summary', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ text })
-        });
-        const data = await res.json();
-        box.innerHTML = `<strong>${data.title}</strong><p>${data.summary}</p><ul>` + 
-          data.key_points.map(p => `<li>${p}</li>`).join('') + `</ul>`;
-      } catch (e) {
-        box.innerText = "Errore durante la generazione.";
-      }
-    }
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
 
-    async function generateQuiz() {
-      const text = document.getElementById('inputText').value;
-      const box = document.getElementById('quizResult');
-      box.style.display = 'block';
-      box.innerText = "Generazione quiz...";
+.tab-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
 
-      try {
-        const res = await fetch('/api/quiz', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ text })
-        });
-        const data = await res.json();
-        box.innerHTML = data.questions.map(q => `
-          <div style="margin-bottom:15px;">
-            <strong>Domanda ${q.id}: ${q.question}</strong><br>
-            ${q.options.join('<br>')}<br>
-            <small style="color: green;">💡 Soluzione: ${q.correct} - ${q.explanation}</small>
-          </div>
-        `).join('');
-      } catch (e) {
-        box.innerText = "Errore durante la generazione.";
-      }
-    }
+.tab-btn.active {
+  background: white;
+  color: var(--primary-red);
+}
 
-    async function generateMap() {
-      const text = document.getElementById('inputText').value;
-      const box = document.getElementById('mapResult');
-      box.style.display = 'block';
-      box.innerText = "Generazione mappa...";
+.result-box {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+  font-size: 16px;
+  line-height: 1.6;
+}
 
-      try {
-        const res = await fetch('/api/map', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ text })
-        });
-        const data = await res.json();
-        box.innerHTML = data.nodes.map(n => `
-          <div style="padding: 8px; border-left: 3px solid var(--primary-red); margin-bottom: 8px; background: #fff;">
-            <strong>${n.title}</strong>: ${n.desc}
-          </div>
-        `).join('');
-      } catch (e) {
-        box.innerText = "Errore durante la generazione.";
-      }
-    }
-  </script>
+.podcast-player {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  padding: 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.file-upload-zone {
+  border: 2px dashed var(--primary-red);
+  background: #fff5f5;
+  padding: 20px;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
