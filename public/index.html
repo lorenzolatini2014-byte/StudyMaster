@@ -1,89 +1,4 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StudyMaster - Studio Semplice con IA</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-  <header>
-    <div class="logo-container">
-      <div class="logo-icon">SM</div>
-      <div class="logo-title">StudyMaster</div>
-    </div>
-  </header>
-
-  <div class="container">
-
-    <!-- NAVIGAZIONE TAB -->
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('podcast-tab', this)">🎙️ Podcast</button>
-      <button class="tab-btn" onclick="switchTab('summary-tab', this)">📝 Riassunto</button>
-      <button class="tab-btn" onclick="switchTab('quiz-tab', this)">🎯 Quiz Verifica</button>
-      <button class="tab-btn" onclick="switchTab('map-tab', this)">🗺️ Mappa Concettuale</button>
-    </div>
-
-    <!-- AREA DI CARICAMENTO MATERIALE -->
-    <div class="card">
-      <h2>1. Inserisci o Carica il Materiale</h2>
-      <p class="subtitle">Carica un file (PDF, Immagine, Audio, Testo) oppure incolla il testo direttamente.</p>
-
-      <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
-        📁 <strong>Clicca qui per caricare un file</strong> (PDF, Immagini, Audio o TXT)
-        <input type="file" id="fileInput" style="display:none;" onchange="handleFileUpload(this)">
-      </div>
-      <div id="fileInfo" style="color: #2b8a3e; font-weight: bold; margin-bottom: 10px;"></div>
-
-      <textarea id="inputText" rows="5" placeholder="Oppure scrivi o incolla qui il testo da studiare..."></textarea>
-    </div>
-
-    <!-- TAB 1: PODCAST -->
-    <div id="podcast-tab" class="card tab-content">
-      <h2>🎙️ Podcast di Studio</h2>
-      <p class="subtitle">Genera la lezione in formato testo e ascoltala direttamente ad alta voce.</p>
-      
-      <button class="btn" onclick="generatePodcast()">Crea Podcast</button>
-
-      <div id="podcastOutput" style="display:none; margin-top:15px;">
-        <div class="podcast-player">
-          <button class="btn" id="playAudioBtn" onclick="toggleAudio()">🔊 Ascolta Vocale</button>
-          <span id="audioStatus">Pronto per l'ascolto</span>
-        </div>
-        
-        <h3 style="margin-top: 15px; color: var(--primary-red);">Script del Podcast:</h3>
-        <div id="podcastScript" class="result-box"></div>
-      </div>
-    </div>
-
-    <!-- TAB 2: RIASSUNTO -->
-    <div id="summary-tab" class="card tab-content" style="display:none;">
-      <h2>📝 Riassunto Intelligente</h2>
-      <p class="subtitle">Punti chiave sintetizzati per un ripasso veloce.</p>
-      <button class="btn" onclick="generateSummary()">Crea Riassunto</button>
-      <div id="summaryResult" class="result-box" style="display:none;"></div>
-    </div>
-
-    <!-- TAB 3: QUIZ -->
-    <div id="quiz-tab" class="card tab-content" style="display:none;">
-      <h2>🎯 Quiz di Verifica</h2>
-      <p class="subtitle">Mettiti alla prova prima di verifiche o interrogazioni.</p>
-      <button class="btn" onclick="generateQuiz()">Crea Domande di Verifica</button>
-      <div id="quizResult" class="result-box" style="display:none;"></div>
-    </div>
-
-    <!-- TAB 4: MAPPA -->
-    <div id="map-tab" class="card tab-content" style="display:none;">
-      <h2>🗺️ Mappa Concettuale</h2>
-      <p class="subtitle">Visualizza la struttura dei concetti.</p>
-      <button class="btn" onclick="generateMap()">Genera Mappa</button>
-      <div id="mapResult" class="result-box" style="display:none;"></div>
-    </div>
-
-  </div>
-
-  <script>
+<script>
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -112,38 +27,58 @@
       }
     }
 
+    // --- VOCE FLUIDA E NATURALE (Stile Live AI) ---
     let isSpeaking = false;
     let synth = window.speechSynthesis;
+    let selectedVoice = null;
+
+    // Seleziona la voce italiana più fluida e naturale disponibile nel browser
+    function loadBestVoice() {
+      const voices = synth.getVoices();
+      // Cerca voci di alta qualità in italiano (es. Google italiano, Microsoft Natural o Siri)
+      selectedVoice = voices.find(v => v.lang.includes('it') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Siri'))) ||
+                      voices.find(v => v.lang.includes('it')) || voices[0];
+    }
+
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = loadBestVoice;
+    }
 
     function toggleAudio() {
       if (isSpeaking) {
         synth.cancel();
         isSpeaking = false;
-        document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale";
+        document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale Fluida";
         document.getElementById('audioStatus').innerText = "In pausa";
       } else {
         const text = document.getElementById('podcastScript').innerText;
         if (!text) return;
 
+        loadBestVoice();
         const utter = new SpeechSynthesisUtterance(text);
+        if (selectedVoice) utter.voice = selectedVoice;
+        
         utter.lang = 'it-IT';
+        utter.rate = 0.95; // Velocità leggermente più umana e rilassata
+        utter.pitch = 1.0; // Tono naturale
+
         utter.onend = () => {
           isSpeaking = false;
-          document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale";
-          document.getElementById('audioStatus').innerText = "Completato";
+          document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale Fluida";
+          document.getElementById('audioStatus').innerText = "Riproduzione completata";
         };
 
         synth.speak(utter);
         isSpeaking = true;
         document.getElementById('playAudioBtn').innerText = "⏸️ Pausa Audio";
-        document.getElementById('audioStatus').innerText = "Riproduzione vocale in corso...";
+        document.getElementById('audioStatus').innerText = "🎙️ Conversazione vocale in corso...";
       }
     }
 
     async function generatePodcast() {
       const text = document.getElementById('inputText').value;
       document.getElementById('podcastOutput').style.display = 'block';
-      document.getElementById('podcastScript').innerText = "Generazione podcast in corso...";
+      document.getElementById('podcastScript').innerText = "Creazione della presentazione audio dettagliata in corso...";
 
       try {
         const res = await fetch('/api/podcast', {
@@ -154,7 +89,7 @@
         const data = await res.json();
         document.getElementById('podcastScript').innerText = data.script;
       } catch (e) {
-        document.getElementById('podcastScript').innerText = "Errore nella chiamata API.";
+        document.getElementById('podcastScript').innerText = "Errore nella generazione del podcast.";
       }
     }
 
@@ -226,5 +161,3 @@
       }
     }
   </script>
-</body>
-</html>
