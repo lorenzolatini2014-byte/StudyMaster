@@ -73,14 +73,14 @@
       <div id="quizResult" class="result-box" style="display:none;"></div>
     </div>
 
-    <!-- TAB 4: MAPPA CONCETTUALE STILE ALGOR -->
+    <!-- TAB 4: MAPPA CONCETTUALE -->
     <div id="map-tab" class="card tab-content" style="display:none;">
-      <h2>🗺️ Mappa Concettuale Precisa (Stile Algor Education)</h2>
+      <h2>🗺️ Mappa Concettuale Precisa</h2>
       <p class="subtitle">Genera una mappa ad albero ramificata e scaricala in alta risoluzione.</p>
       
       <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
         <button class="btn" onclick="generateMap()">Genera Mappa Precisa</button>
-        <button class="btn btn-secondary" id="downloadMapBtn" style="display:none; background-color:#2b8a3e;" onclick="downloadMapSVG()">📥 Scarica Mappa (SVG/Immagine)</button>
+        <button class="btn btn-secondary" id="downloadMapBtn" style="display:none; background-color:#2b8a3e;" onclick="downloadMapSVG()">📥 Scarica Mappa (Immagine SVG)</button>
       </div>
 
       <div id="mapResult" class="result-box" style="display:none; background:#ffffff; border: 2px dashed #d32f2f; overflow-x: auto;"></div>
@@ -117,7 +117,6 @@
       }
     }
 
-    // --- LEZIONE VOCALE FLUIDA E NATURALE ---
     let isSpeaking = false;
     let synth = window.speechSynthesis;
     let bestVoice = null;
@@ -226,14 +225,13 @@
       }
     }
 
-    // --- MAPPA CONCETTUALE STILE ALGOR EDUCATION ---
     async function generateMap() {
       const text = document.getElementById('inputText').value;
       const box = document.getElementById('mapResult');
       const downloadBtn = document.getElementById('downloadMapBtn');
 
       box.style.display = 'block';
-      box.innerText = "Creazione mappa concettuale precisa stile Algor...";
+      box.innerText = "Creazione mappa concettuale precisa...";
 
       try {
         const res = await fetch('/api/map', {
@@ -243,7 +241,6 @@
         });
         const data = await res.json();
 
-        // Genera Mappa HTML/SVG Stile Algor Education
         const rootNode = data.nodes[0];
         let mapHTML = `
           <div id="algorMapContainer" style="padding: 20px; text-align: center; font-family: sans-serif;">
@@ -279,7 +276,6 @@
       }
     }
 
-    // SCARICA MAPPA IN FORMATO SVG/IMMAGINE
     function downloadMapSVG() {
       const container = document.getElementById('algorMapContainer');
       if (!container) return;
