@@ -47,7 +47,6 @@ async def upload_file(file: UploadFile = File(...)):
 def generate_podcast(req: TextRequest):
     src = req.text.strip() if req.text.strip() else "Tabelline e concetti di aritmetica di base."
     
-    # Script dettagliato, fluido e con la giusta durata per lo studio
     script = (
         "Benvenuti a questa lezione speciale di StudyMaster dedicata alla memorizzazione e alla comprensione profonda delle tabelline! "
         "Spesso le tabelline vengono viste come un esercizio faticoso da imparare a memoria, ma in realtà racchiudono una straordinaria armonia di schemi e regole matematiche. "
@@ -107,11 +106,36 @@ def generate_quiz(req: TextRequest):
 
 @app.post("/api/map")
 def generate_map(req: TextRequest):
+    # Mappa concettuale dettagliata e ramificata stile Algor Education
     return {
+        "title": "Mappa Concettuale: Le Tabelline",
         "nodes": [
-            {"title": "Mappa: Le Tabelline", "desc": "Concetto di moltiplicazione e addizione ripetuta"},
-            {"title": "Proprietà Commutativa", "desc": "Permette di dimezzare i calcoli da imparare (a x b = b x a)"},
-            {"title": "Schemi Facili (2, 5, 10)", "desc": "Numeri pari, finali in 0/5 e aggiunta dello zero"},
-            {"title": "Trucchi Avanzati (9)", "desc": "Somma delle cifre del risultato sempre pari a 9"}
+            {
+                "id": "main",
+                "title": "📐 LE TABELLINE",
+                "type": "root",
+                "subnodes": [
+                    {
+                        "title": "1. CONCETTO BASE",
+                        "desc": "Addizione ripetuta dello stesso numero",
+                        "items": ["Es: 3 x 4 = 3 + 3 + 3 + 3 = 12", "Fattore x Fattore = Prodotto"]
+                    },
+                    {
+                        "title": "2. PROPRIETÀ COMMUTATIVA",
+                        "desc": "Cambiare l'ordine non altera il prodotto",
+                        "items": ["a x b = b x a", "Dimezza i calcoli da imparare (es. 7x8 = 8x7)"]
+                    },
+                    {
+                        "title": "3. TABELLINE FACILI",
+                        "desc": "Regole immediate da memorizzare",
+                        "items": ["Tabellina del 2: Raddoppio dei numeri", "Tabellina del 5: Finisce sempre per 0 o 5", "Tabellina del 10: Aggiungi uno zero finale"]
+                    },
+                    {
+                        "title": "4. TRUCCHI AVANZATI (9)",
+                        "desc": "Schema matematico del 9",
+                        "items": ["Somma cifre risultato sempre 9 (9x3=27 -> 2+7=9)", "Uso delle 10 dita delle mani"]
+                    }
+                ]
+            }
         ]
     }
