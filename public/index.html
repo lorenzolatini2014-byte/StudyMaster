@@ -1,171 +1,249 @@
-:root {
-  --bg-red: #8b0000;
-  --header-red: #5c0000;
-  --card-bg: #ffffff;
-  --text-dark: #1f2937;
-  --primary-red: #d32f2f;
-  --primary-hover: #b71c1c;
-  --border-light: #fee2e2;
-}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyMaster - Studio Semplice con IA</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-red);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: var(--text-dark);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-}
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">SM</div>
+      <div class="logo-title">StudyMaster</div>
+    </div>
+  </header>
 
-header {
-  width: 100%;
-  background: var(--header-red);
-  padding: 1rem 0;
-  text-align: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
+  <div class="container">
 
-.logo-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: white;
-}
+    <!-- NAVIGAZIONE TAB -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('podcast-tab', this)">🎙️ Podcast</button>
+      <button class="tab-btn" onclick="switchTab('summary-tab', this)">📝 Riassunto</button>
+      <button class="tab-btn" onclick="switchTab('quiz-tab', this)">🎯 Quiz Verifica</button>
+      <button class="tab-btn" onclick="switchTab('map-tab', this)">🗺️ Mappa Concettuale</button>
+    </div>
 
-.logo-icon {
-  background: white;
-  color: var(--primary-red);
-  font-size: 22px;
-  font-weight: 800;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+    <!-- AREA DI CARICAMENTO MATERIALE -->
+    <div class="card">
+      <h2>1. Inserisci o Carica il Materiale</h2>
+      <p class="subtitle">Carica un file (PDF, Immagine, Audio, Testo) oppure incolla il testo direttamente.</p>
 
-.logo-title {
-  font-size: 26px;
-  font-weight: 700;
-}
+      <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
+        📁 <strong>Clicca qui per caricare un file</strong> (PDF, Immagini, Audio o TXT)
+        <input type="file" id="fileInput" style="display:none;" onchange="handleFileUpload(this)">
+      </div>
+      <div id="fileInfo" style="color: #2b8a3e; font-weight: bold; margin-bottom: 10px;"></div>
 
-.container {
-  width: 90%;
-  max-width: 800px;
-  margin: 25px auto;
-}
+      <textarea id="inputText" rows="5" placeholder="Oppure scrivi o incolla qui il testo da studiare..."></textarea>
+    </div>
 
-.card {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  margin-bottom: 20px;
-}
+    <!-- TAB 1: PODCAST -->
+    <div id="podcast-tab" class="card tab-content">
+      <h2>🎙️ Podcast di Studio (Spiegazione Vocale Dettagliata)</h2>
+      <p class="subtitle">Genera una vera lezione parlata e ascoltala con la voce fluida e naturale dell'IA.</p>
+      
+      <button class="btn" onclick="generatePodcast()">Crea Podcast Completo</button>
 
-h2 {
-  margin-top: 0;
-  color: var(--primary-red);
-  font-size: 20px;
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 8px;
-}
+      <div id="podcastOutput" style="display:none; margin-top:15px;">
+        <div class="podcast-player">
+          <button class="btn" id="playAudioBtn" onclick="toggleAudio()">🔊 Ascolta Vocale Fluida</button>
+          <span id="audioStatus">Pronto per l'ascolto</span>
+        </div>
+        
+        <h3 style="margin-top: 15px; color: var(--primary-red);">Script della Lezione (Testo):</h3>
+        <div id="podcastScript" class="result-box"></div>
+      </div>
+    </div>
 
-.subtitle {
-  font-size: 15px;
-  color: #555;
-  margin-bottom: 15px;
-}
+    <!-- TAB 2: RIASSUNTO -->
+    <div id="summary-tab" class="card tab-content" style="display:none;">
+      <h2>📝 Riassunto Intelligente</h2>
+      <p class="subtitle">Punti chiave sintetizzati per un ripasso veloce.</p>
+      <button class="btn" onclick="generateSummary()">Crea Riassunto</button>
+      <div id="summaryResult" class="result-box" style="display:none;"></div>
+    </div>
 
-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  font-size: 16px;
-  box-sizing: border-box;
-  margin-bottom: 15px;
-  font-family: inherit;
-}
+    <!-- TAB 3: QUIZ -->
+    <div id="quiz-tab" class="card tab-content" style="display:none;">
+      <h2>🎯 Quiz di Verifica</h2>
+      <p class="subtitle">Mettiti alla prova prima di verifiche o interrogazioni.</p>
+      <button class="btn" onclick="generateQuiz()">Crea Domande di Verifica</button>
+      <div id="quizResult" class="result-box" style="display:none;"></div>
+    </div>
 
-textarea:focus {
-  border-color: var(--primary-red);
-  outline: none;
-}
+    <!-- TAB 4: MAPPA -->
+    <div id="map-tab" class="card tab-content" style="display:none;">
+      <h2>🗺️ Mappa Concettuale</h2>
+      <p class="subtitle">Visualizza la struttura dei concetti.</p>
+      <button class="btn" onclick="generateMap()">Genera Mappa</button>
+      <div id="mapResult" class="result-box" style="display:none;"></div>
+    </div>
 
-.btn {
-  background-color: var(--primary-red);
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  font-size: 16px;
-  font-weight: bold;
-  border-radius: 8px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
+  </div>
 
-.btn:hover {
-  background-color: var(--primary-hover);
-}
+  <script>
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(tabId).style.display = 'block';
+      btn.classList.add('active');
+    }
 
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-}
+    async function handleFileUpload(input) {
+      if (!input.files || !input.files[0]) return;
+      const file = input.files[0];
+      document.getElementById('fileInfo').innerText = "⏳ Caricamento file: " + file.name;
 
-.tab-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
-}
+      const formData = new FormData();
+      formData.append("file", file);
 
-.tab-btn.active {
-  background: white;
-  color: var(--primary-red);
-}
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.text) {
+          document.getElementById('inputText').value = data.text;
+          document.getElementById('fileInfo').innerText = "✅ File caricato ed estratto con successo!";
+        }
+      } catch (e) {
+        document.getElementById('fileInfo').innerText = "✅ File selezionato: " + file.name;
+      }
+    }
 
-.result-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 15px;
-  margin-top: 15px;
-  font-size: 16px;
-  line-height: 1.6;
-}
+    // --- LEZIONE VOCALE FLUIDA E NATURALE ---
+    let isSpeaking = false;
+    let synth = window.speechSynthesis;
+    let bestVoice = null;
 
-.podcast-player {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  padding: 15px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-top: 15px;
-}
+    function getBestItalianVoice() {
+      const voices = synth.getVoices();
+      // Seleziona la voce italiana con la migliore qualità naturale (Google, Microsoft Natural, Apple)
+      bestVoice = voices.find(v => v.lang.includes('it') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Siri') || v.name.includes('Alice'))) ||
+                  voices.find(v => v.lang.includes('it')) || voices[0];
+    }
 
-.file-upload-zone {
-  border: 2px dashed var(--primary-red);
-  background: #fff5f5;
-  padding: 20px;
-  text-align: center;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-bottom: 15px;
-}
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = getBestItalianVoice;
+    }
+
+    function toggleAudio() {
+      if (isSpeaking) {
+        synth.cancel();
+        isSpeaking = false;
+        document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale Fluida";
+        document.getElementById('audioStatus').innerText = "In pausa";
+      } else {
+        const text = document.getElementById('podcastScript').innerText;
+        if (!text) return;
+
+        getBestItalianVoice();
+        const utter = new SpeechSynthesisUtterance(text);
+        if (bestVoice) utter.voice = bestVoice;
+
+        utter.lang = 'it-IT';
+        utter.rate = 0.92; // Ritmo rilassato e naturale da insegnante
+        utter.pitch = 1.0; // Tono naturale
+
+        utter.onend = () => {
+          isSpeaking = false;
+          document.getElementById('playAudioBtn').innerText = "🔊 Ascolta Vocale Fluida";
+          document.getElementById('audioStatus').innerText = "Ascolto completato";
+        };
+
+        synth.speak(utter);
+        isSpeaking = true;
+        document.getElementById('playAudioBtn').innerText = "⏸️ Pausa Audio";
+        document.getElementById('audioStatus').innerText = "🎙️ Lezione vocale in corso...";
+      }
+    }
+
+    async function generatePodcast() {
+      const text = document.getElementById('inputText').value;
+      document.getElementById('podcastOutput').style.display = 'block';
+      document.getElementById('podcastScript').innerText = "Elaborazione della lezione in corso...";
+
+      try {
+        const res = await fetch('/api/podcast', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        document.getElementById('podcastScript').innerText = data.script;
+      } catch (e) {
+        document.getElementById('podcastScript').innerText = "Errore durante la generazione del podcast.";
+      }
+    }
+
+    async function generateSummary() {
+      const text = document.getElementById('inputText').value;
+      const box = document.getElementById('summaryResult');
+      box.style.display = 'block';
+      box.innerText = "Creazione riassunto...";
+
+      try {
+        const res = await fetch('/api/summary', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        box.innerHTML = `<strong>${data.title}</strong><p>${data.summary}</p><ul>` + 
+          data.key_points.map(p => `<li>${p}</li>`).join('') + `</ul>`;
+      } catch (e) {
+        box.innerText = "Errore durante la generazione.";
+      }
+    }
+
+    async function generateQuiz() {
+      const text = document.getElementById('inputText').value;
+      const box = document.getElementById('quizResult');
+      box.style.display = 'block';
+      box.innerText = "Generazione quiz...";
+
+      try {
+        const res = await fetch('/api/quiz', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        box.innerHTML = data.questions.map(q => `
+          <div style="margin-bottom:15px; background:#fff; padding:10px; border-radius:6px;">
+            <strong>Domanda ${q.id}: ${q.question}</strong><br><br>
+            ${q.options.join('<br>')}<br><br>
+            <small style="color: green; font-weight:bold;">💡 Soluzione: ${q.correct} - ${q.explanation}</small>
+          </div>
+        `).join('');
+      } catch (e) {
+        box.innerText = "Errore durante la generazione.";
+      }
+    }
+
+    async function generateMap() {
+      const text = document.getElementById('inputText').value;
+      const box = document.getElementById('mapResult');
+      box.style.display = 'block';
+      box.innerText = "Generazione mappa...";
+
+      try {
+        const res = await fetch('/api/map', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        box.innerHTML = data.nodes.map(n => `
+          <div style="padding: 10px; border-left: 4px solid var(--primary-red); margin-bottom: 8px; background: #fff; border-radius: 4px;">
+            <strong>${n.title}</strong>: ${n.desc}
+          </div>
+        `).join('');
+      } catch (e) {
+        box.innerText = "Errore durante la generazione.";
+      }
+    }
+  </script>
+</body>
+</html>
