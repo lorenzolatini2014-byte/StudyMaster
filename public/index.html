@@ -73,12 +73,17 @@
       <div id="quizResult" class="result-box" style="display:none;"></div>
     </div>
 
-    <!-- TAB 4: MAPPA -->
+    <!-- TAB 4: MAPPA CONCETTUALE STILE ALGOR -->
     <div id="map-tab" class="card tab-content" style="display:none;">
-      <h2>🗺️ Mappa Concettuale</h2>
-      <p class="subtitle">Visualizza la struttura dei concetti.</p>
-      <button class="btn" onclick="generateMap()">Genera Mappa</button>
-      <div id="mapResult" class="result-box" style="display:none;"></div>
+      <h2>🗺️ Mappa Concettuale Precisa (Stile Algor Education)</h2>
+      <p class="subtitle">Genera una mappa ad albero ramificata e scaricala in alta risoluzione.</p>
+      
+      <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+        <button class="btn" onclick="generateMap()">Genera Mappa Precisa</button>
+        <button class="btn btn-secondary" id="downloadMapBtn" style="display:none; background-color:#2b8a3e;" onclick="downloadMapSVG()">📥 Scarica Mappa (SVG/Immagine)</button>
+      </div>
+
+      <div id="mapResult" class="result-box" style="display:none; background:#ffffff; border: 2px dashed #d32f2f; overflow-x: auto;"></div>
     </div>
 
   </div>
@@ -119,7 +124,6 @@
 
     function getBestItalianVoice() {
       const voices = synth.getVoices();
-      // Seleziona la voce italiana con la migliore qualità naturale (Google, Microsoft Natural, Apple)
       bestVoice = voices.find(v => v.lang.includes('it') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Siri') || v.name.includes('Alice'))) ||
                   voices.find(v => v.lang.includes('it')) || voices[0];
     }
@@ -143,8 +147,8 @@
         if (bestVoice) utter.voice = bestVoice;
 
         utter.lang = 'it-IT';
-        utter.rate = 0.92; // Ritmo rilassato e naturale da insegnante
-        utter.pitch = 1.0; // Tono naturale
+        utter.rate = 0.92;
+        utter.pitch = 1.0;
 
         utter.onend = () => {
           isSpeaking = false;
@@ -222,11 +226,14 @@
       }
     }
 
+    // --- MAPPA CONCETTUALE STILE ALGOR EDUCATION ---
     async function generateMap() {
       const text = document.getElementById('inputText').value;
       const box = document.getElementById('mapResult');
+      const downloadBtn = document.getElementById('downloadMapBtn');
+
       box.style.display = 'block';
-      box.innerText = "Generazione mappa...";
+      box.innerText = "Creazione mappa concettuale precisa stile Algor...";
 
       try {
         const res = await fetch('/api/map', {
@@ -235,14 +242,66 @@
           body: JSON.stringify({ text })
         });
         const data = await res.json();
-        box.innerHTML = data.nodes.map(n => `
-          <div style="padding: 10px; border-left: 4px solid var(--primary-red); margin-bottom: 8px; background: #fff; border-radius: 4px;">
-            <strong>${n.title}</strong>: ${n.desc}
-          </div>
-        `).join('');
+
+        // Genera Mappa HTML/SVG Stile Algor Education
+        const rootNode = data.nodes[0];
+        let mapHTML = `
+          <div id="algorMapContainer" style="padding: 20px; text-align: center; font-family: sans-serif;">
+            <div style="background: #8b0000; color: white; padding: 15px 25px; border-radius: 30px; font-weight: bold; font-size: 22px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+              ${rootNode.title}
+            </div>
+            
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 30px; flex-wrap: wrap;">
+        `;
+
+        rootNode.subnodes.forEach(sub => {
+          mapHTML += `
+            <div style="background: #fff5f5; border: 2px solid #d32f2f; border-radius: 12px; padding: 15px; width: 220px; text-align: left; box-shadow: 0 3px 8px rgba(0,0,0,0.1);">
+              <div style="color: #d32f2f; font-weight: bold; border-bottom: 1px solid #fee2e2; padding-bottom: 5px; margin-bottom: 8px;">
+                ${sub.title}
+              </div>
+              <div style="font-size: 13px; color: #555; margin-bottom: 8px; font-style: italic;">
+                ${sub.desc}
+              </div>
+              <ul style="padding-left: 15px; margin: 0; font-size: 13px; color: #1f2937;">
+                ${sub.items.map(it => `<li style="margin-bottom: 4px;">${it}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        });
+
+        mapHTML += `</div></div>`;
+        box.innerHTML = mapHTML;
+        downloadBtn.style.display = 'inline-flex';
+
       } catch (e) {
-        box.innerText = "Errore durante la generazione.";
+        box.innerText = "Errore durante la generazione della mappa.";
       }
+    }
+
+    // SCARICA MAPPA IN FORMATO SVG/IMMAGINE
+    function downloadMapSVG() {
+      const container = document.getElementById('algorMapContainer');
+      if (!container) return;
+
+      const svgData = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+          <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              ${container.outerHTML}
+            </div>
+          </foreignObject>
+        </svg>
+      `;
+
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'StudyMaster_Mappa_Concettuale.svg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   </script>
 </body>
