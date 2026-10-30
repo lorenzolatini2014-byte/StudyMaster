@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 class QuizRequest(BaseModel):
     text: str
@@ -33,7 +33,7 @@ def notify_discord(ip: str, action: str):
     if not DISCORD_WEBHOOK_URL:
         return
     now = datetime.now().strftime("%d/%m/%Y alle %H:%M:%S")
-    message = {"content": f"🚨 **StudyMaster Attività:**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
+    message = {"content": f"🚨 **StudyMaster Attività (Groq):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=3)
     except:
@@ -55,33 +55,36 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     else:
         return f"Argomento di studio: {filename}. Spiega approfonditamente i concetti chiave legati a questo titolo."
 
-def call_gemini_api(prompt: str) -> str:
-    if not GEMINI_API_KEY:
-        return "⚠️ Errore: GEMINI_API_KEY non configurata su Vercel."
+def call_groq_api(prompt: str) -> str:
+    if not GROQ_API_KEY:
+        return "⚠️ Errore: GROQ_API_KEY non configurata nelle variabili d'ambiente di Vercel."
     
-    # Endpoint ufficiale v1 con gemini-1.5-flash
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    headers = {"Content-Type": "application/json"}
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
     payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7,
+        "max_tokens": 2048
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        response = requests.post(url, headers=headers, json=payload, timeout=25)
         res_data = response.json()
-        if "candidates" in res_data:
-            return res_data["candidates"][0]["content"]["parts"][0]["text"]
+        if "choices" in res_data:
+            return res_data["choices"][0]["message"]["content"]
         else:
-            return f"Errore Gemini: {json.dumps(res_data)}"
+            return f"Errore Groq: {json.dumps(res_data)}"
     except Exception as e:
-        return f"Errore di connessione a Gemini: {str(e)}"
+        return f"Errore di connessione a Groq: {str(e)}"
 
 @app.get("/api/health")
 def health(request: Request):
     notify_discord(get_client_ip(request), "Visita Sito")
-    return {"status": "ok", "app": "StudyMaster"}
+    return {"status": "ok", "app": "StudyMaster Groq"}
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...), request: Request = None):
@@ -95,20 +98,20 @@ async def upload_file(file: UploadFile = File(...), request: Request = None):
 
 @app.post("/api/podcast")
 def generate_podcast(req: TextRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Podcast con Gemini")
+    notify_discord(get_client_ip(request), "Generazione Podcast con Groq")
     user_input = req.text.strip() if req.text.strip() else "Concetti generali di studio"
     
-    prompt = f"Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata su questo argomento o materiale:\n\n{user_input}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti e spiega i concetti chiave in modo discorsivo ed esaustivo."
-    script = call_gemini_api(prompt)
+    prompt = f"Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata sotto forma di podcast basata su questo materiale:\n\n{user_input}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti e spiega i concetti chiave in modo discorsivo ed esaustivo."
+    script = call_groq_api(prompt)
     return {"script": script}
 
 @app.post("/api/summary")
 def generate_summary(req: TextRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Riassunto con Gemini")
+    notify_discord(get_client_ip(request), "Generazione Riassunto con Groq")
     user_input = req.text.strip() if req.text.strip() else "Argomento di studio"
     
-    prompt = f"Analizza questo testo/argomento e crea un riassunto approfondito. Restituisci SOLO un oggetto JSON valido (senza blocchi di codice markdown intorno) con queste chiavi esatte:\n{{\"title\": \"Titolo chiaro\", \"key_points\": [\"Punto 1\", \"Punto 2\", \"Punto 3\", \"Punto 4\"], \"summary\": \"Spiegazione dettagliata\"}}\n\nTesto:\n{user_input}"
-    res_text = call_gemini_api(prompt)
+    prompt = f"Analizza questo testo/argomento e crea un riassunto approfondito. Restituisci SOLO un oggetto JSON valido (senza blocchi di codice markdown o altri caratteri) con queste chiavi esatte:\n{{\"title\": \"Titolo chiaro\", \"key_points\": [\"Punto 1\", \"Punto 2\", \"Punto 3\", \"Punto 4\"], \"summary\": \"Spiegazione dettagliata\"}}\n\nTesto:\n{user_input}"
+    res_text = call_groq_api(prompt)
     
     try:
         clean_json = res_text.replace("```json", "").replace("```", "").strip()
@@ -122,11 +125,11 @@ def generate_summary(req: TextRequest, request: Request):
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest, request: Request):
-    notify_discord(get_client_ip(request), f"Generazione Quiz Gemini")
+    notify_discord(get_client_ip(request), f"Generazione Quiz Groq")
     user_input = req.text.strip() if req.text.strip() else "Argomento generale"
     
     prompt = f"Crea esattamente {req.length} domande di verifica a scelta multipla basate su questo argomento: '{user_input}'. Restituisci SOLO un array JSON puro (senza markdown) con questo schema:\n[{{\"id\": 1, \"question\": \"Domanda...\", \"options\": [{{\"text\": \"Errata\", \"correct\": false}}, {{\"text\": \"Corretta\", \"correct\": true}}], \"explanation\": \"Spiegazione\"}}]"
-    res_text = call_gemini_api(prompt)
+    res_text = call_groq_api(prompt)
     
     try:
         clean_json = res_text.replace("```json", "").replace("```", "").strip()
@@ -136,11 +139,11 @@ def generate_quiz(req: QuizRequest, request: Request):
 
 @app.post("/api/map")
 def generate_map(req: TextRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Mappa con Gemini")
+    notify_discord(get_client_ip(request), "Generazione Mappa con Groq")
     user_input = req.text.strip() if req.text.strip() else "ARGOMENTO"
     
     prompt = f"Crea una struttura per una mappa concettuale basata su: '{user_input}'. Restituisci SOLO un JSON puro (senza markdown) con questo schema:\n{{\"title\": \"Titolo\", \"nodes\": [{{\"id\": \"main\", \"title\": \"PRINCIPALE\", \"type\": \"root\", \"subnodes\": [{{\"title\": \"Sotto 1\", \"desc\": \"Desc\", \"items\": [\"a\", \"b\"]}}]}}]}}"
-    res_text = call_gemini_api(prompt)
+    res_text = call_groq_api(prompt)
     
     try:
         clean_json = res_text.replace("```json", "").replace("```", "").strip()
