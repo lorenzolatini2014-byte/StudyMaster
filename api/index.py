@@ -6,8 +6,8 @@ from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
 import pypdf
+import google.generativeai as genai
 
 app = FastAPI(title="StudyMaster API")
 
@@ -19,32 +19,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh"
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 class QuizRequest(BaseModel):
     text: str
-    difficulty: str = "medio"
+    difficulty: str = "2"
     length: int = 3
 
 class TextRequest(BaseModel):
     text: str
 
 def notify_discord(ip: str, action: str):
-    """Invia una notifica su Discord con IP, Data e Azione"""
-    if not DISCORD_WEBHOOK_URL or "api/webhooks" not in DISCORD_WEBHOOK_URL:
+    if not DISCORD_WEBHOOK_URL:
         return
-    
     now = datetime.now().strftime("%d/%m/%Y alle %H:%M:%S")
-    message = {
-        "content": f"🚨 **Nuovo accesso / attività su StudyMaster!**\n📅 **Data:** `{now}`\n🌐 **Indirizzo IP:** `{ip}`\n⚡ **Azione:** `{action}`"
-    }
+    message = {"content": f"🚨 **StudyMaster Attività:**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=3)
-    except Exception:
+    except:
         pass
 
 def get_client_ip(request: Request) -> str:
-    """Ricava l'IP reale del visitatore anche dietro i proxy di Vercel"""
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0]
@@ -58,163 +57,128 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     elif ext in ["txt", "md"]:
         return file_bytes.decode("utf-8", errors="ignore")
     else:
-        return f"[File {filename} caricato per l'elaborazione]"
+        return f"[File {filename} caricato]"
 
 @app.get("/api/health")
 def health(request: Request):
-    ip = get_client_ip(request)
-    notify_discord(ip, "Visita / Apertura Sito")
+    notify_discord(get_client_ip(request), "Visita Sito")
     return {"status": "ok", "app": "StudyMaster"}
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...), request: Request = None):
-    ip = get_client_ip(request) if request else "IP Sconosciuto"
-    notify_discord(ip, f"Caricamento file: {file.filename}")
+    notify_discord(get_client_ip(request) if request else "IP Sconosciuto", f"Upload: {file.filename}")
     try:
         contents = await file.read()
         extracted = extract_text(contents, file.filename)
-        return {"success": True, "filename": file.filename, "text": extracted[:5000]}
+        return {"success": True, "filename": file.filename, "text": extracted[:10000]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/podcast")
 def generate_podcast(req: TextRequest, request: Request):
-    ip = get_client_ip(request)
-    notify_discord(ip, "Generazione Podcast Dettagliato")
+    notify_discord(get_client_ip(request), "Generazione Podcast con Gemini")
+    if not GEMINI_API_KEY:
+        return {"script": "⚠️ Errore: Configura la GEMINI_API_KEY su Vercel."}
     
-    text = req.text.strip() if req.text.strip() else "Nessun argomento inserito."
-    
-    # Crea una spiegazione strutturata e approfondita basata sul testo dell'utente
-    script = (
-        f"Benvenuti al podcast di studio di StudyMaster. Oggi analizzeremo a fondo e spiegheremo passo dopo passo l'argomento che hai fornito.\n\n"
-        f"Mettiti comodo e segui con attenzione la spiegazione:\n\n"
-        f"1. **Analisi del Contenuto:**\n"
-        f"Il materiale su cui stiamo lavorando si concentra sui seguenti punti chiave:\n\"{text[:600]}\"\n\n"
-        f"2. **Come si fa e passaggi logici:**\n"
-        f"Per comprendere e padroneggiare questo argomento, non basta memorizzare le definizioni, ma bisogna capire il procedimento logico. "
-        f"Analizzando il testo, emerge chiaramente che ogni concetto si basa su regole precise. Ad esempio, quando affronti un problema di questo tipo, devi:\n"
-        f"- Isolare i dati o le informazioni fornite nel testo.\n"
-        f"- Applicare la regola o la formula corretta passo dopo passo senza saltare passaggi.\n"
-        f"- Verificare il risultato ottenuto per assicurarti che sia coerente con la teoria.\n\n"
-        f"3. **Esempio pratico e conclusione:**\n"
-        f"Prendi carta e penna, prova a riapplicare lo stesso procedimento su un caso simile e ripeti i passaggi a voce alta. "
-        f"Questo è il metodo migliore per fissare le informazioni nella memoria a lungo termine. Buon proseguimento di studio con StudyMaster!"
-    )
-    return {"script": script}
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    prompt = f"""Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata ESATTAMENTE su questo materiale di studio:\n\n{req.text}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti tratti dal testo, spiega i concetti chiave in modo discorsivo ed esaustivo. Deve essere una spiegazione completa e di alto livello per aiutare lo studente."""
+    response = model.generate_content(prompt)
+    return {"script": response.text}
 
 @app.post("/api/summary")
 def generate_summary(req: TextRequest, request: Request):
-    ip = get_client_ip(request)
-    notify_discord(ip, "Generazione Riassunto Mirato")
+    notify_discord(get_client_ip(request), "Generazione Riassunto con Gemini")
+    if not GEMINI_API_KEY:
+        return {"title": "Errore", "key_points": [], "summary": "GEMINI_API_KEY mancante."}
     
-    text = req.text.strip() if req.text.strip() else "Testo non fornito."
-    sentences = [s.strip() for s in text.split('.') if len(s.strip()) > 10]
-    key_bullet1 = sentences[0] if len(sentences) > 0 else "Analisi iniziale del testo e definizione dell'argomento."
-    key_bullet2 = sentences[1] if len(sentences) > 1 else "Sviluppo dei passaggi logici e applicazione pratica."
-    key_bullet3 = sentences[2] if len(sentences) > 2 else "Conclusioni e verifica dei risultati ottenuti."
-
-    return {
-        "title": "Riassunto e Analisi Dettagliata del Testo",
-        "key_points": [
-            f"Punto Chiave 1: {key_bullet1}.",
-            f"Punto Chiave 2: {key_bullet2}.",
-            f"Punto Chiave 3: {key_bullet3}.",
-            "Metodo di studio consigliato: Ripasso attivo dei passaggi e verifica con i quiz."
-        ],
-        "summary": f"Sintesi approfondita basata interamente sul tuo documento: {text[:800]}... Il testo descrive concetti specifici che richiedono attenzione ai passaggi procedurali e alla comprensione teorica."
-    }
+    try:
+        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
+        prompt = f"""Analizza questo materiale di studio e crea un riassunto approfondito. Restituisci la risposta in formato JSON con queste chiavi esatte:
+        {{
+          "title": "Titolo chiaro dell'argomento",
+          "key_points": ["Punto chiave 1 dettagliato", "Punto chiave 2 dettagliato", "Punto chiave 3 dettagliato", "Punto chiave 4 dettagliato"],
+          "summary": "Una spiegazione discorsiva e dettagliata del testo"
+        }}
+        Materiale:\n{req.text}"""
+        res = json_model.generate_content(prompt)
+        return json.loads(res.text)
+    except Exception as e:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        return {
+            "title": "Riassunto Studio",
+            "key_points": ["Analisi dei concetti principali del documento."],
+            "summary": model.generate_content(f"Riassumi questo testo:\n{req.text}").text
+        }
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest, request: Request):
-    ip = get_client_ip(request)
-    notify_discord(ip, f"Generazione Quiz Mirato (Difficoltà: {req.difficulty}, Lunghezza: {req.length})")
+    notify_discord(get_client_ip(request), f"Generazione Quiz Gemini (Difficoltà: {req.difficulty}, N: {req.length})")
+    if not GEMINI_API_KEY:
+        return {"questions": []}
     
-    text = req.text.strip() if req.text.strip() else "Argomento generale"
-    snippet = text[:50]
+    diff_str = {"1": "facile", "2": "medio", "3": "difficile"}.get(str(req.difficulty), "medio")
     
-    # Domande strutturate sull'argomento reale inserito
-    all_questions = [
-        {
+    try:
+        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
+        prompt = f"""Crea esattamente {req.length} domande di verifica a scelta multipla basate RIGOROSAMENTE sul testo fornito sotto. Livello di difficoltà: {diff_str}.
+        Restituisci la risposta in formato JSON (un array JSON puro) con questo schema esatto:
+        [
+          {{
             "id": 1,
-            "question": f"Considerando il testo inserito ('{snippet}...'), qual è il passaggio fondamentale da eseguire correttamente?",
+            "question": "Testo della domanda...",
             "options": [
-                {"text": "Seguire la sequenza logica dei passaggi descritti nel testo", "correct": True},
-                {"text": "Inventare procedimenti non attinenti alla teoria", "correct": False},
-                {"text": "Ignorare le regole fondamentali della materia", "correct": False}
+              {{"text": "Opzione errata", "correct": false}},
+              {{"text": "Opzione corretta", "correct": true}},
+              {{"text": "Altra opzione errata", "correct": false}}
             ],
-            "explanation": "Il testo richiede l'applicazione rigorosa della procedura indicata."
-        },
-        {
-            "id": 2,
-            "question": "Qual è lo scopo principale delle informazioni analizzate in questo documento?",
-            "options": [
-                {"text": "Spiegare la teoria e fornire gli strumenti per applicarla correttamente", "correct": True},
-                {"text": "Confondere i concetti chiave con dati casuali", "correct": False},
-                {"text": "Fornire una panoramica slegata dalla pratica", "correct": False}
-            ],
-            "explanation": "L'obiettivo del materiale è fornire un quadro teorico e pratico completo."
-        },
-        {
-            "id": 3,
-            "question": "Come si verifica la correttezza del procedimento applicato?",
-            "options": [
-                {"text": "Controllando ogni singolo passaggio in base alle regole teoriche", "correct": True},
-                {"text": "Affidandosi unicamente al caso", "correct": False},
-                {"text": "Saltando la verifica finale", "correct": False}
-            ],
-            "explanation": "Il controllo dei passaggi garantisce l'assenza di errori."
-        },
-        {
-            "id": 4,
-            "question": "Quale comportamento favorisce la memorizzazione di questo argomento?",
-            "options": [
-                {"text": "La ripetizione attiva e la risoluzione di esercizi pratici mirati", "correct": True},
-                {"text": "La lettura passiva senza alcuno sforzo di comprensione", "correct": False},
-                {"text": "Evitare di ripassare i punti più complessi", "correct": False}
-            ],
-            "explanation": "La pratica attiva consolida stabilmente le informazioni nella memoria."
-        }
-    ]
-    selected = all_questions[:req.length]
-    return {"questions": selected}
+            "explanation": "Spiegazione dettagliata della risposta corretta."
+          }}
+        ]
+        Testo di riferimento:\n{req.text}"""
+        
+        res = json_model.generate_content(prompt)
+        questions = json.loads(res.text)
+        return {"questions": questions}
+    except Exception as e:
+        return {"questions": [{"id": 1, "question": "Errore nella generazione del quiz dall'IA.", "options": [{"text": "Riprova", "correct": true}], "explanation": str(e)}]}
 
 @app.post("/api/map")
 def generate_map(req: TextRequest, request: Request):
-    ip = get_client_ip(request)
-    notify_discord(ip, "Generazione Mappa Concettuale Mirata")
+    notify_discord(get_client_ip(request), "Generazione Mappa con Gemini")
+    if not GEMINI_API_KEY:
+        return {"title": "Errore", "nodes": []}
     
-    text = req.text.strip() if req.text.strip() else "ARGOMENTO"
-    title = text[:25].upper() if len(text) > 0 else "DOCUMENTO"
-    
-    return {
-        "title": f"Mappa: {title}",
-        "nodes": [
-            {
+    try:
+        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
+        prompt = f"""Crea una struttura per una mappa concettuale basata su questo testo. Restituisci un JSON con questo schema esatto:
+        {{
+          "title": "Titolo della Mappa",
+          "nodes": [
+            {{
+              "id": "main",
+              "title": "TITOLO PRINCIPALE",
+              "type": "root",
+              "subnodes": [
+                {{
+                  "title": "Sotto-argomento 1",
+                  "desc": "Descrizione del nodo",
+                  "items": ["Concetto a", "Concetto b"]
+                }}
+              ]
+            }}
+          ]
+        }}
+        Testo di riferimento:\n{req.text}"""
+        
+        res = json_model.generate_content(prompt)
+        return json.loads(res.text)
+    except Exception as e:
+        return {
+            "title": "Mappa Concettuale",
+            "nodes": [{
                 "id": "main",
-                "title": f"📌 {title}",
+                "title": "ARGOMENTO",
                 "type": "root",
-                "subnodes": [
-                    {
-                        "title": "1. DEFINIZIONE E TEORIA",
-                        "desc": "Concetti di base estratti",
-                        "items": ["Principi fondamentali", "Terminologia specifica del testo"]
-                    },
-                    {
-                        "title": "2. PROCEDIMENTO (COME SI FA)",
-                        "desc": "Passaggi operativi",
-                        "items": ["Sequenza delle azioni", "Regole di applicazione"]
-                    },
-                    {
-                        "title": "3. ESEMPI E APPLICAZIONI",
-                        "desc": "Casi pratici reali",
-                        "items": ["Risoluzione guidata", "Verifica dei dati"]
-                    },
-                    {
-                        "title": "4. RIPASSO E VERIFICA",
-                        "desc": "Controllo finale",
-                        "items": ["Punti critici da ricordare", "Autovalutazione con quiz"]
-                    }
-                ]
-            }
-        ]
-    }
+                "subnodes": [{"title": "Errore", "desc": "Impossibile generare la mappa", "items": [str(e)]}]
+            }]
+        }
