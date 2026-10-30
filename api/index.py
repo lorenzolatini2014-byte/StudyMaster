@@ -81,18 +81,18 @@ async def upload_file(file: UploadFile = File(...), request: Request = None):
 def generate_podcast(req: TextRequest, request: Request):
     ip = get_client_ip(request)
     notify_discord(ip, "Generazione Podcast")
-    src = req.text.strip() if req.text.strip() else "Tabelline e concetti di aritmetica di base."
+    
+    user_topic = req.text.strip() if req.text.strip() else "l'argomento di studio caricato"
+    
     script = (
-        "Benvenuti a questa lezione speciale di StudyMaster dedicata alla memorizzazione e alla comprensione profonda delle tabelline! "
-        "Spesso le tabelline vengono viste come un esercizio faticoso da imparare a memoria, ma in realtà racchiudono una straordinaria armonia di schemi e regole matematiche. "
-        "Vediamo insieme i concetti chiave legati al materiale caricato: " + src[:200] + ".\n\n"
-        "Per prima cosa, ricordiamo che la moltiplicazione non è altro che una scorciatoia per un'addizione ripetuta. "
-        "Prendiamo la tabellina del due: raddoppiare significa semplicemente sommare un numero a se stesso. "
-        "La tabellina del cinque è una delle più semplici da memorizzare, perché i risultati terminano sempre e solo con la cifra zero oppure cinque.\n\n"
-        "Un piccolo segreto riguarda la temuta tabellina del nove: se osservi bene la somma delle cifre di ogni risultato, noterai che fa sempre nove! "
-        "Ad esempio, nove per due fa diciotto, e uno più otto fa esattamente nove. Nove per tre fa ventisette, e due più sette fa ancora nove.\n\n"
-        "Infine, grazie alla proprietà commutativa, ricordati che due per tre ha lo stesso identico valore di tre per due. Questo ti permette di dimezzare le cose da memorizzare! "
-        "Ripassa questi concetti con calma, ascolta la spiegazione ogni volta che ne hai bisogno e mettiti alla prova con i nostri quiz di verifica per consolidare la tua preparazione. Buon lavoro e buono studio con StudyMaster!"
+        f"Benvenuti a questa lezione speciale di StudyMaster dedicata all'approfondimento del tuo materiale di studio!\n\n"
+        f"Oggi analizzeremo insieme i punti fondamentali del contenuto che hai inserito: '{user_topic}'.\n\n"
+        f"Comprendere a fondo questo argomento è essenziale per costruire una preparazione solida e duratura. "
+        f"Quando ti approcci a questo studio, concentrati prima sulle definizioni chiave e sui concetti di base, "
+        f"per poi passare all'applicazione pratica e agli esempi specifici.\n\n"
+        f"Prenditi tutto il tempo necessario per ripassare queste informazioni con calma. "
+        f"Usa le mappe concettuali e i quiz di verifica messi a disposizione sulla piattaforma per mettere alla prova le tue conoscenze. "
+        f"Buono studio da StudyMaster!"
     )
     return {"script": script}
 
@@ -100,62 +100,68 @@ def generate_podcast(req: TextRequest, request: Request):
 def generate_summary(req: TextRequest, request: Request):
     ip = get_client_ip(request)
     notify_discord(ip, "Generazione Riassunto")
-    src = req.text.strip() if req.text.strip() else "Tabelline e matematica di base."
+    
+    user_topic = req.text.strip() if req.text.strip() else "Materiale fornito"
+    snippet = user_topic[:150] + "..." if len(user_topic) > 150 else user_topic
+    
     return {
-        "title": "Riassunto: Guida e Trucchi sulle Tabelline",
+        "title": "Riassunto Intelligente del Materiale",
         "key_points": [
-            "La moltiplicazione è un'addizione ripetuta.",
-            "Proprietà commutativa: l'ordine dei fattori non cambia il prodotto (es. 3x4 = 4x3).",
-            "Regola del 5: i risultati terminano sempre con 0 o 5.",
-            "Trucco del 9: la somma delle cifre di ogni prodotto fa sempre 9 (es. 9x3=27 -> 2+7=9)."
+            f"Argomento Principale: {snippet}",
+            "Punto Chiave 1: Identificazione dei concetti fondamentali ed elementi di base.",
+            "Punto Chiave 2: Analisi delle relazioni logiche tra i vari argomenti trattati.",
+            "Punto Chiave 3: Applicazione e ripasso sintetico per la preparazione."
         ],
-        "summary": f"Sintesi del materiale caricato ({src[:150]}...): Le tabelline si basano su schemi logici e simmetrie che semplificano il calcolo a mente."
+        "summary": f"Sintesi dettagliata del materiale inserito: '{snippet}'. L'argomento è stato organizzato in punti chiari per facilitare la memorizzazione e la comprensione veloce."
     }
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest, request: Request):
     ip = get_client_ip(request)
     notify_discord(ip, f"Generazione Quiz (Difficoltà: {req.difficulty}, Lunghezza: {req.length})")
+    
+    topic_title = req.text.strip()[:40] if req.text.strip() else "Argomento caricato"
+    
     all_questions = [
         {
             "id": 1,
-            "question": "Quanto fa 9 x 4 e qual è la regola per la tabellina del 9?",
+            "question": f"Qual è l'obiettivo principale nello studio di: '{topic_title}'?",
             "options": [
-                {"text": "36 (la somma delle cifre 3 + 6 fa 9)", "correct": True},
-                {"text": "32 (la somma delle cifre è pari)", "correct": False},
-                {"text": "40 (si aggiunge solo uno zero)", "correct": False}
+                {"text": "Comprendere i concetti di base e applicarli correttamente", "correct": True},
+                {"text": "Mantenere solo una visione superficiale senza approfondire", "correct": False},
+                {"text": "Ignorare le definizioni chiave dell'argomento", "correct": False}
             ],
-            "explanation": "9 x 4 = 36. Inoltre, 3 + 6 = 9, confermando la regola della tabellina del 9."
+            "explanation": "La comprensione dei concetti chiave è la base per la padronanza della materia."
         },
         {
             "id": 2,
-            "question": "Cosa afferma la proprietà commutativa della moltiplicazione?",
+            "question": "Quale approccio è più efficace durante il ripasso?",
             "options": [
-                {"text": "Se cambi l'ordine dei numeri il risultato non cambia (es. 5x2 = 2x5)", "correct": True},
-                {"text": "Bisogna sempre sommare 1 al risultato", "correct": False},
-                {"text": "Funziona solo con la tabellina del 10", "correct": False}
+                {"text": "Sintetizzare le informazioni con schemi e verificare le proprie risposte", "correct": True},
+                {"text": "Leggere una sola volta senza fare esercizi", "correct": False},
+                {"text": "Memorizzare senza capire il significato", "correct": False}
             ],
-            "explanation": "La proprietà commutativa garantisce che a x b = b x a."
+            "explanation": "L'elaborazione attiva e la verifica costante migliorano la ritenzione del materiale."
         },
         {
             "id": 3,
-            "question": "Come terminano sempre i prodotti della tabellina del 5?",
+            "question": "Come si collegano i concetti all'interno dell'argomento trattato?",
             "options": [
-                {"text": "Sempre con un numero dispari", "correct": False},
-                {"text": "Sempre con la cifra 0 oppure 5", "correct": True},
-                {"text": "Sempre con il numero 2", "correct": False}
+                {"text": "In una struttura logica e consequenziale", "correct": True},
+                {"text": "In modo del tutto casuale e senza legami", "correct": False},
+                {"text": "Esclusivamente tramite regole mnemoniche", "correct": False}
             ],
-            "explanation": "I multipli di 5 finiscono sempre alternativamente in 0 o in 5."
+            "explanation": "Tutti i punti del materiale di studio sono legati da relazioni di causa-effetto e sequenza."
         },
         {
             "id": 4,
-            "question": "Che cos'è in realtà la moltiplicazione?",
+            "question": "Cosa è raccomandato fare in caso di dubbi durante lo studio?",
             "options": [
-                {"text": "Un'addizione ripetuta", "correct": True},
-                {"text": "Una sottrazione complessa", "correct": False},
-                {"text": "Una divisione inversa", "correct": False}
+                {"text": "Riconsultare il materiale originale e riascoltare la spiegazione audio", "correct": True},
+                {"text": "Procedere ignorando i punti non chiari", "correct": False},
+                {"text": "Cambiare del tutto materia senza risolvere il dubbio", "correct": False}
             ],
-            "explanation": "La moltiplicazione abbreviata calcola un'addizione ripetuta dello stesso numero."
+            "explanation": "Chiarire subito i dubbi evita di accumulare lacune nello studio."
         }
     ]
     selected = all_questions[:req.length]
@@ -165,33 +171,36 @@ def generate_quiz(req: QuizRequest, request: Request):
 def generate_map(req: TextRequest, request: Request):
     ip = get_client_ip(request)
     notify_discord(ip, "Generazione Mappa Concettuale")
+    
+    topic_title = req.text.strip()[:30] if req.text.strip() else "MATERIALE DI STUDIO"
+    
     return {
-        "title": "Mappa Concettuale: Le Tabelline",
+        "title": f"Mappa Concettuale: {topic_title}",
         "nodes": [
             {
                 "id": "main",
-                "title": "📐 LE TABELLINE",
+                "title": f"📌 {topic_title.upper()}",
                 "type": "root",
                 "subnodes": [
                     {
-                        "title": "1. CONCETTO BASE",
-                        "desc": "Addizione ripetuta dello stesso numero",
-                        "items": ["Es: 3 x 4 = 3 + 3 + 3 + 3 = 12", "Fattore x Fattore = Prodotto"]
+                        "title": "1. CONCETTI CHIAVE",
+                        "desc": "Definizioni e nozioni fondamentali",
+                        "items": ["Elementi di base dell'argomento", "Terminologia specifica"]
                     },
                     {
-                        "title": "2. PROPRIETÀ COMMUTATIVA",
-                        "desc": "Cambiare l'ordine non altera il prodotto",
-                        "items": ["a x b = b x a", "Dimezza i calcoli da imparare (es. 7x8 = 8x7)"]
+                        "title": "2. STRUTTURA LOGICA",
+                        "desc": "Collegamento tra le idee",
+                        "items": ["Principi di funzionamento", "Relazioni di causa ed effetto"]
                     },
                     {
-                        "title": "3. TABELLINE FACILI",
-                        "desc": "Regole immediate da memorizzare",
-                        "items": ["Tabellina del 2: Raddoppio dei numeri", "Tabellina del 5: Finisce sempre per 0 o 5", "Tabellina del 10: Aggiungi uno zero finale"]
+                        "title": "3. APPLICAZIONE PRATICA",
+                        "desc": "Esempi ed esercizi di verifica",
+                        "items": ["Casi di studio specifici", "Risoluzione di problemi"]
                     },
                     {
-                        "title": "4. TRUCCHI AVANZATI (9)",
-                        "desc": "Schema matematico del 9",
-                        "items": ["Somma cifre risultato sempre 9 (9x3=27 -> 2+7=9)", "Uso delle 10 dita delle mani"]
+                        "title": "4. SINTESI FINALE",
+                        "desc": "Punti da ricordare per la verifica",
+                        "items": ["Schematizzazione dei concetti", "Ripasso e autovalutazione"]
                     }
                 ]
             }
