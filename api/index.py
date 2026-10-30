@@ -83,7 +83,7 @@ def generate_podcast(req: TextRequest, request: Request):
         return {"script": "⚠️ Errore: Configura la GEMINI_API_KEY su Vercel."}
     
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         prompt = f"""Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata su questo argomento o materiale:\n\n{user_input}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti, spiega i concetti chiave in modo discorsivo ed esaustivo. Deve essere una spiegazione completa di alto livello."""
         response = model.generate_content(prompt)
         return {"script": response.text}
@@ -99,7 +99,7 @@ def generate_summary(req: TextRequest, request: Request):
         return {"title": "Errore", "key_points": [], "summary": "GEMINI_API_KEY mancante."}
     
     try:
-        json_model = genai.GenerativeModel("gemini-pro", generation_config={"response_mime_type": "application/json"})
+        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
         prompt = f"""Analizza questo testo/argomento e crea un riassunto approfondito. Restituisci un JSON con queste chiavi esatte:
         {{
           "title": "Titolo chiaro dell'argomento",
@@ -125,7 +125,7 @@ def generate_quiz(req: QuizRequest, request: Request):
         return {"questions": []}
     
     try:
-        json_model = genai.GenerativeModel("gemini-pro", generation_config={"response_mime_type": "application/json"})
+        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
         prompt = f"""Crea esattamente {req.length} domande di verifica a scelta multipla basate su questo argomento: '{user_input}'.
         Restituisci la risposta in formato JSON (un array JSON puro) con questo schema esatto:
         [
@@ -154,7 +154,7 @@ def generate_map(req: TextRequest, request: Request):
         return {"title": "Errore", "nodes": []}
     
     try:
-        json_model = genai.GenerativeModel("gemini-pro", generation_config={"response_mime_type": "application/json"})
+        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
         prompt = f"""Crea una struttura per una mappa concettuale basata su: '{user_input}'. Restituisci un JSON con questo schema esatto:
         {{
           "title": "Titolo della Mappa",
