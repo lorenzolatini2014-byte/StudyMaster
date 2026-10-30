@@ -65,12 +65,25 @@
       <div id="summaryResult" class="result-box" style="display:none;"></div>
     </div>
 
-    <!-- TAB 3: QUIZ -->
+    <!-- TAB 3: QUIZ INTERATTIVO CON MANOPOLE -->
     <div id="quiz-tab" class="card tab-content" style="display:none;">
-      <h2>🎯 Quiz di Verifica</h2>
-      <p class="subtitle">Mettiti alla prova prima di verifiche o interrogazioni.</p>
-      <button class="btn" onclick="generateQuiz()">Crea Domande di Verifica</button>
-      <div id="quizResult" class="result-box" style="display:none;"></div>
+      <h2>🎯 Quiz di Verifica Interattivo</h2>
+      <p class="subtitle">Imposta la difficoltà e la lunghezza con le manopole qui sotto e mettiti alla prova.</p>
+      
+      <!-- MANOPOLE / SLIDER PER CONFIGURARE IL QUIZ -->
+      <div style="background: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #fca5a5;">
+        <div style="margin-bottom: 10px;">
+          <label><strong>⚡ Difficoltà:</strong> <span id="diffLabel">Medio</span></label><br>
+          <input type="range" id="difficultyRange" min="1" max="3" value="2" style="width:100%; accent-color: var(--primary-red);" oninput="updateDiffLabel(this.value)">
+        </div>
+        <div>
+          <label><strong>📏 Lunghezza (Numero domande):</strong> <span id="lengthLabel">3</span></label><br>
+          <input type="range" id="lengthRange" min="1" max="4" value="3" style="width:100%; accent-color: var(--primary-red);" oninput="updateLengthLabel(this.value)">
+        </div>
+      </div>
+
+      <button class="btn" onclick="generateQuiz()">Crea Quiz Personalizzato</button>
+      <div id="quizResult" class="result-box" style="display:none; background:#ffffff;"></div>
     </div>
 
     <!-- TAB 4: MAPPA CONCETTUALE -->
@@ -200,28 +213,76 @@
       }
     }
 
+    // GESTIONE ETICHETTE MANOPOLE SLIDER
+    function updateDiffLabel(val) {
+      const labels = { "1": "Facile", "2": "Medio", "3": "Difficile" };
+      document.getElementById('diffLabel').innerText = labels[val];
+    }
+    function updateLengthLabel(val) {
+      document.getElementById('lengthLabel').innerText = val;
+    }
+
+    // QUIZ INTERATTIVO CON PULSANTI CLICCABILI E RISPOSTA GIUSTA/SBAGLIATA
     async function generateQuiz() {
       const text = document.getElementById('inputText').value;
+      const diffVal = document.getElementById('difficultyRange').value;
+      const lenVal = document.getElementById('lengthRange').value;
       const box = document.getElementById('quizResult');
+
       box.style.display = 'block';
-      box.innerText = "Generazione quiz...";
+      box.innerText = "Generazione quiz interattivo...";
 
       try {
         const res = await fetch('/api/quiz', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ text })
+          body: JSON.stringify({ text, difficulty: diffVal, length: parseInt(lenVal) })
         });
         const data = await res.json();
-        box.innerHTML = data.questions.map(q => `
-          <div style="margin-bottom:15px; background:#fff; padding:10px; border-radius:6px;">
+
+        box.innerHTML = data.questions.map((q, qIndex) => `
+          <div style="margin-bottom: 20px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
             <strong>Domanda ${q.id}: ${q.question}</strong><br><br>
-            ${q.options.join('<br>')}<br><br>
-            <small style="color: green; font-weight:bold;">💡 Soluzione: ${q.correct} - ${q.explanation}</small>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${q.options.map((opt, oIndex) => `
+                <button onclick="checkAnswer(this, ${opt.correct}, 'expl-${q.id}')" style="background: white; border: 1px solid #ccc; padding: 10px; border-radius: 6px; text-align: left; cursor: pointer; font-size: 15px; transition: 0.2s;">
+                  ${opt.text}
+                </button>
+              `).join('')}
+            </div>
+            <div id="expl-${q.id}" style="margin-top: 10px; font-weight: bold; display: none; padding: 8px; border-radius: 4px;"></div>
           </div>
         `).join('');
       } catch (e) {
-        box.innerText = "Errore durante la generazione.";
+        box.innerText = "Errore durante la generazione del quiz.";
+      }
+    }
+
+    // FUNZIONE PER VERIFICARE LA RISPOSTA AL CLIC
+    function checkAnswer(btn, isCorrect, explId) {
+      const parent = btn.parentElement;
+      const buttons = parent.querySelectorAll('button');
+      
+      // Disattiva tutti i bottoni della domanda dopo la scelta
+      buttons.forEach(b => b.disabled = true);
+
+      const explBox = document.getElementById(explId);
+      explBox.style.display = 'block';
+
+      if (isCorrect) {
+        btn.style.background = '#d1e7dd';
+        btn.style.borderColor = '#198754';
+        btn.style.color = '#0f5132';
+        explBox.style.background = '#d1e7dd';
+        explBox.style.color = '#0f5132';
+        explBox.innerText = "✅ Risposta Esatta!";
+      } else {
+        btn.style.background = '#f8d7da';
+        btn.style.borderColor = '#dc3545';
+        btn.style.color = '#842029';
+        explBox.style.background = '#f8d7da';
+        explBox.style.color = '#842029';
+        explBox.innerText = "❌ Risposta Sbagliata!";
       }
     }
 
