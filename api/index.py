@@ -56,12 +56,12 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
         return f"Argomento di studio: {filename}. Spiega approfonditamente i concetti chiave legati a questo titolo."
 
 def call_gemini_api(prompt: str) -> str:
-    """Chiamata diretta alle API di Gemini usando l'endpoint v1 e gemini-pro"""
     if not GEMINI_API_KEY:
-        return "⚠️ Errore: GEMINI_API_KEY non configurata nelle variabili d'ambiente di Vercel."
+        return "⚠️ Errore: GEMINI_API_KEY non configurata su Vercel."
     
-    # Usiamo l'endpoint v1 e il modello gemini-pro che è sempre attivo su tutte le chiavi di AI Studio
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+    # Proviamo i modelli più stabili in sequenza finché uno non risponde
+    models_to_try = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"]
+    
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{
@@ -69,15 +69,20 @@ def call_gemini_api(prompt: str) -> str:
         }]
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=20)
-        res_data = response.json()
-        if "candidates" in res_data:
-            return res_data["candidates"][0]["content"]["parts"][0]["text"]
-        else:
-            return f"Errore Google Gemini: {json.dumps(res_data)}"
-    except Exception as e:
-        return f"Errore di connessione a Gemini: {str(e)}"
+    last_error = ""
+    for model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            res_data = response.json()
+            if "candidates" in res_data:
+                return res_data["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                last_error = json.dumps(res_data)
+        except Exception as e:
+            last_error = str(e)
+            
+    return f"Errore di connessione a Gemini (tutti i modelli falliti): {last_error}"
 
 @app.get("/api/health")
 def health(request: Request):
