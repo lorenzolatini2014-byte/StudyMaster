@@ -33,7 +33,7 @@ def notify_discord(ip: str, action: str):
     if not DISCORD_WEBHOOK_URL:
         return
     now = datetime.now().strftime("%d/%m/%Y alle %H:%M:%S")
-    message = {"content": f"🚨 **StudyMaster Attività (Groq):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
+    message = {"content": f"🚨 **StudyMaster Attività (Groq Mixtral):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=3)
     except:
@@ -62,7 +62,7 @@ def call_groq_api(prompt: str) -> str:
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": "mixtral-8x7b-32768",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
         "max_tokens": 2048
