@@ -19,7 +19,9 @@ app.add_middleware(
 )
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+# Chiave Groq inserita direttamente per azzerare qualsiasi errore di configurazione su Vercel
+GROQ_API_KEY = "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"
 
 class QuizRequest(BaseModel):
     text: str
@@ -33,7 +35,7 @@ def notify_discord(ip: str, action: str):
     if not DISCORD_WEBHOOK_URL:
         return
     now = datetime.now().strftime("%d/%m/%Y alle %H:%M:%S")
-    message = {"content": f"🚨 **StudyMaster Attività (Groq):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
+    message = {"content": f"🚨 **StudyMaster Attività (Groq Diretto):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=3)
     except:
@@ -56,9 +58,6 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
         return f"Argomento di studio: {filename}. Spiega approfonditamente i concetti chiave legati a questo titolo."
 
 def call_groq_api(prompt: str) -> str:
-    if not GROQ_API_KEY:
-        return "⚠️ Errore: GROQ_API_KEY non configurata nelle variabili d'ambiente di Vercel."
-    
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -84,7 +83,7 @@ def call_groq_api(prompt: str) -> str:
 @app.get("/api/health")
 def health(request: Request):
     notify_discord(get_client_ip(request), "Visita Sito")
-    return {"status": "ok", "app": "StudyMaster Groq"}
+    return {"status": "ok", "app": "StudyMaster Groq Diretto"}
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...), request: Request = None):
