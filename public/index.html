@@ -68,17 +68,16 @@
     <!-- TAB 3: QUIZ INTERATTIVO CON MANOPOLE -->
     <div id="quiz-tab" class="card tab-content" style="display:none;">
       <h2>🎯 Quiz di Verifica Interattivo</h2>
-      <p class="subtitle">Imposta la difficoltà e la lunghezza con le manopole qui sotto e mettiti alla prova.</p>
+      <p class="subtitle">Usa le manopole qui sotto per regolare difficoltà e lunghezza del quiz.</p>
       
-      <!-- MANOPOLE / SLIDER PER CONFIGURARE IL QUIZ -->
       <div style="background: #fff5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #fca5a5;">
-        <div style="margin-bottom: 10px;">
-          <label><strong>⚡ Difficoltà:</strong> <span id="diffLabel">Medio</span></label><br>
-          <input type="range" id="difficultyRange" min="1" max="3" value="2" style="width:100%; accent-color: var(--primary-red);" oninput="updateDiffLabel(this.value)">
+        <div style="margin-bottom: 15px;">
+          <label><strong>⚡ Difficoltà:</strong> <span id="diffLabel" style="color: var(--primary-red); font-weight: bold;">Medio</span></label><br>
+          <input type="range" id="difficultyRange" min="1" max="3" value="2" style="width:100%; cursor:pointer; accent-color: var(--primary-red);" oninput="updateDiffLabel(this.value)">
         </div>
         <div>
-          <label><strong>📏 Lunghezza (Numero domande):</strong> <span id="lengthLabel">3</span></label><br>
-          <input type="range" id="lengthRange" min="1" max="4" value="3" style="width:100%; accent-color: var(--primary-red);" oninput="updateLengthLabel(this.value)">
+          <label><strong>📏 Lunghezza (Numero domande):</strong> <span id="lengthLabel" style="color: var(--primary-red); font-weight: bold;">3</span></label><br>
+          <input type="range" id="lengthRange" min="1" max="4" value="3" style="width:100%; cursor:pointer; accent-color: var(--primary-red);" oninput="updateLengthLabel(this.value)">
         </div>
       </div>
 
@@ -213,16 +212,15 @@
       }
     }
 
-    // GESTIONE ETICHETTE MANOPOLE SLIDER
     function updateDiffLabel(val) {
       const labels = { "1": "Facile", "2": "Medio", "3": "Difficile" };
       document.getElementById('diffLabel').innerText = labels[val];
     }
+
     function updateLengthLabel(val) {
       document.getElementById('lengthLabel').innerText = val;
     }
 
-    // QUIZ INTERATTIVO CON PULSANTI CLICCABILI E RISPOSTA GIUSTA/SBAGLIATA
     async function generateQuiz() {
       const text = document.getElementById('inputText').value;
       const diffVal = document.getElementById('difficultyRange').value;
@@ -258,12 +256,10 @@
       }
     }
 
-    // FUNZIONE PER VERIFICARE LA RISPOSTA AL CLIC
     function checkAnswer(btn, isCorrect, explId) {
       const parent = btn.parentElement;
       const buttons = parent.querySelectorAll('button');
       
-      // Disattiva tutti i bottoni della domanda dopo la scelta
       buttons.forEach(b => b.disabled = true);
 
       const explBox = document.getElementById(explId);
@@ -287,7 +283,7 @@
     }
 
     async function generateMap() {
-      const text = document.getElementById('inputText').value;
+      const text = document.getElementById('inputText'].value;
       const box = document.getElementById('mapResult');
       const downloadBtn = document.getElementById('downloadMapBtn');
 
