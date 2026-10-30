@@ -7,7 +7,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pypdf
-import google.generativeai as genai
 
 app = FastAPI(title="StudyMaster API")
 
@@ -21,9 +20,6 @@ app.add_middleware(
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
 class QuizRequest(BaseModel):
     text: str
@@ -59,6 +55,29 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     else:
         return f"Argomento di studio: {filename}. Spiega approfonditamente i concetti chiave legati a questo titolo."
 
+def call_gemini_api(prompt: str) -> str:
+    """Chiamata diretta alle API di Gemini tramite HTTP per evitare qualsiasi errore di libreria"""
+    if not GEMINI_API_KEY:
+        return "⚠️ Errore: GEMINI_API_KEY non configurata nelle variabili d'ambiente di Vercel."
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        res_data = response.json()
+        if "candidates" in res_data:
+            return res_data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            return f"Risposta API non valida: {json.dumps(res_data)}"
+    except Exception as e:
+        return f"Errore di connessione a Gemini: {str(e)}"
+
 @app.get("/api/health")
 def health(request: Request):
     notify_discord(get_client_ip(request), "Visita Sito")
@@ -79,41 +98,26 @@ def generate_podcast(req: TextRequest, request: Request):
     notify_discord(get_client_ip(request), "Generazione Podcast con Gemini")
     user_input = req.text.strip() if req.text.strip() else "Concetti generali di studio"
     
-    if not GEMINI_API_KEY:
-        return {"script": "⚠️ Errore: Configura la GEMINI_API_KEY su Vercel."}
-    
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        prompt = f"""Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata su questo argomento o materiale:\n\n{user_input}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti, spiega i concetti chiave in modo discorsivo ed esaustivo. Deve essere una spiegazione completa di alto livello."""
-        response = model.generate_content(prompt)
-        return {"script": response.text}
-    except Exception as e:
-        return {"script": f"Errore nella generazione con l'IA: {str(e)}"}
+    prompt = f"Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata su questo argomento o materiale:\n\n{user_input}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti e spiega i concetti chiave in modo discorsivo ed esaustivo."
+    script = call_gemini_api(prompt)
+    return {"script": script}
 
 @app.post("/api/summary")
 def generate_summary(req: TextRequest, request: Request):
     notify_discord(get_client_ip(request), "Generazione Riassunto con Gemini")
     user_input = req.text.strip() if req.text.strip() else "Argomento di studio"
     
-    if not GEMINI_API_KEY:
-        return {"title": "Errore", "key_points": [], "summary": "GEMINI_API_KEY mancante."}
+    prompt = f"Analizza questo testo/argomento e crea un riassunto approfondito. Restituisci SOLO un oggetto JSON valido (senza blocchi di codice markdown intorno) con queste chiavi esatte:\n{{\"title\": \"Titolo chiaro\", \"key_points\": [\"Punto 1\", \"Punto 2\", \"Punto 3\", \"Punto 4\"], \"summary\": \"Spiegazione dettagliata\"}}\n\nTesto:\n{user_input}"
+    res_text = call_gemini_api(prompt)
     
     try:
-        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
-        prompt = f"""Analizza questo testo/argomento e crea un riassunto approfondito. Restituisci un JSON con queste chiavi esatte:
-        {{
-          "title": "Titolo chiaro dell'argomento",
-          "key_points": ["Punto chiave 1", "Punto chiave 2", "Punto chiave 3", "Punto chiave 4"],
-          "summary": "Una spiegazione discorsiva e dettagliata"
-        }}
-        Testo:\n{user_input}"""
-        res = json_model.generate_content(prompt)
-        return json.loads(res.text)
-    except Exception as e:
+        clean_json = res_text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
+    except:
         return {
             "title": "Riassunto Studio",
-            "key_points": ["Analisi dei concetti principali."],
-            "summary": f"Errore IA: {str(e)}"
+            "key_points": ["Analisi dei concetti principali del documento."],
+            "summary": res_text
         }
 
 @app.post("/api/quiz")
@@ -121,67 +125,33 @@ def generate_quiz(req: QuizRequest, request: Request):
     notify_discord(get_client_ip(request), f"Generazione Quiz Gemini")
     user_input = req.text.strip() if req.text.strip() else "Argomento generale"
     
-    if not GEMINI_API_KEY:
-        return {"questions": []}
+    prompt = f"Crea esattamente {req.length} domande di verifica a scelta multipla basate su questo argomento: '{user_input}'. Restituisci SOLO un array JSON puro (senza markdown) con questo schema:\n[{{\"id\": 1, \"question\": \"Domanda...\", \"options\": [{{\"text\": \"Errata\", \"correct\": false}}, {{\"text\": \"Corretta\", \"correct\": true}}], \"explanation\": \"Spiegazione\"}}]"
+    res_text = call_gemini_api(prompt)
     
     try:
-        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
-        prompt = f"""Crea esattamente {req.length} domande di verifica a scelta multipla basate su questo argomento: '{user_input}'.
-        Restituisci la risposta in formato JSON (un array JSON puro) con questo schema esatto:
-        [
-          {{
-            "id": 1,
-            "question": "Testo della domanda...",
-            "options": [
-              {{"text": "Opzione errata", "correct": false}},
-              {{"text": "Opzione corretta", "correct": true}},
-              {{"text": "Altra opzione errata", "correct": false}}
-            ],
-            "explanation": "Spiegazione dettagliata."
-          }}
-        ]"""
-        res = json_model.generate_content(prompt)
-        return {"questions": json.loads(res.text)}
-    except Exception as e:
-        return {"questions": [{"id": 1, "question": "Errore generazione quiz.", "options": [{"text": "Riprova", "correct": true}], "explanation": str(e)}]}
+        clean_json = res_text.replace("```json", "").replace("```", "").strip()
+        return {"questions": json.loads(clean_json)}
+    except:
+        return {"questions": [{"id": 1, "question": "Errore nella generazione del quiz.", "options": [{"text": "Riprova", "correct": True}], "explanation": res_text}]}
 
 @app.post("/api/map")
 def generate_map(req: TextRequest, request: Request):
     notify_discord(get_client_ip(request), "Generazione Mappa con Gemini")
     user_input = req.text.strip() if req.text.strip() else "ARGOMENTO"
     
-    if not GEMINI_API_KEY:
-        return {"title": "Errore", "nodes": []}
+    prompt = f"Crea una struttura per una mappa concettuale basata su: '{user_input}'. Restituisci SOLO un JSON puro (senza markdown) con questo schema:\n{{\"title\": \"Titolo\", \"nodes\": [{{\"id\": \"main\", \"title\": \"PRINCIPALE\", \"type\": \"root\", \"subnodes\": [{{\"title\": \"Sotto 1\", \"desc\": \"Desc\", \"items\": [\"a\", \"b\"]}}]}}]}}"
+    res_text = call_gemini_api(prompt)
     
     try:
-        json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
-        prompt = f"""Crea una struttura per una mappa concettuale basata su: '{user_input}'. Restituisci un JSON con questo schema esatto:
-        {{
-          "title": "Titolo della Mappa",
-          "nodes": [
-            {{
-              "id": "main",
-              "title": "TITOLO PRINCIPALE",
-              "type": "root",
-              "subnodes": [
-                {{
-                  "title": "Sotto-argomento 1",
-                  "desc": "Descrizione",
-                  "items": ["Concetto a", "Concetto b"]
-                }}
-              ]
-            }}
-          ]
-        }}"""
-        res = json_model.generate_content(prompt)
-        return json.loads(res.text)
-    except Exception as e:
+        clean_json = res_text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
+    except:
         return {
             "title": "Mappa Concettuale",
             "nodes": [{
                 "id": "main",
                 "title": "ARGOMENTO",
                 "type": "root",
-                "subnodes": [{"title": "Errore", "desc": "Impossibile generare", "items": [str(e)]}]
+                "subnodes": [{"title": "Errore", "desc": "Impossibile generare", "items": [res_text]}]
             }]
         }
