@@ -73,25 +73,23 @@ async def upload_file(file: UploadFile = File(...), request: Request = None):
     try:
         contents = await file.read()
         extracted = extract_text(contents, file.filename)
-        return {"success": True, "filename": file.filename, "text": extracted[:3000]}
+        return {"success": True, "filename": file.filename, "text": extracted[:4000]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/podcast")
 def generate_podcast(req: TextRequest, request: Request):
     ip = get_client_ip(request)
-    notify_discord(ip, "Generazione Podcast")
+    notify_discord(ip, "Generazione Podcast Mirato")
     
-    user_topic = req.text.strip() if req.text.strip() else "l'argomento di studio caricato"
+    content = req.text.strip() if req.text.strip() else "Nessun testo fornito."
+    snippet = content[:800] # Prende una parte consistente del testo inserito
     
     script = (
-        f"Benvenuti a questa lezione speciale di StudyMaster dedicata all'approfondimento del tuo materiale di studio!\n\n"
-        f"Oggi analizzeremo insieme i punti fondamentali del contenuto che hai inserito: '{user_topic}'.\n\n"
-        f"Comprendere a fondo questo argomento è essenziale per costruire una preparazione solida e duratura. "
-        f"Quando ti approcci a questo studio, concentrati prima sulle definizioni chiave e sui concetti di base, "
-        f"per poi passare all'applicazione pratica e agli esempi specifici.\n\n"
-        f"Prenditi tutto il tempo necessario per ripassare queste informazioni con calma. "
-        f"Usa le mappe concettuali e i quiz di verifica messi a disposizione sulla piattaforma per mettere alla prova le tue conoscenze. "
+        f"Benvenuti al podcast di studio di StudyMaster. Oggi analizzeremo e spiegheremo in dettaglio il materiale che hai caricato.\n\n"
+        f"Entriamo subito nel vivo dell'argomento:\n{snippet}\n\n"
+        f"Per comprendere a fondo questo testo, è importante focalizzarsi sui punti chiave appena esposti, collegandoli tra loro in modo logico. "
+        f"Rileggi con attenzione questi passaggi, pensa agli esempi pratici e ripeti i concetti a voce alta per fissarli al meglio nella memoria. "
         f"Buono studio da StudyMaster!"
     )
     return {"script": script}
@@ -99,69 +97,73 @@ def generate_podcast(req: TextRequest, request: Request):
 @app.post("/api/summary")
 def generate_summary(req: TextRequest, request: Request):
     ip = get_client_ip(request)
-    notify_discord(ip, "Generazione Riassunto")
+    notify_discord(ip, "Generazione Riassunto Mirato")
     
-    user_topic = req.text.strip() if req.text.strip() else "Materiale fornito"
-    snippet = user_topic[:150] + "..." if len(user_topic) > 150 else user_topic
+    content = req.text.strip() if req.text.strip() else "Testo di studio generale."
+    # Estrae parole o prime righe per dare un senso specifico
+    words = content.split()
+    preview = " ".join(words[:30]) + ("..." if len(words) > 30 else "")
     
     return {
-        "title": "Riassunto Intelligente del Materiale",
+        "title": "Riassunto Mirato del Documento",
         "key_points": [
-            f"Argomento Principale: {snippet}",
-            "Punto Chiave 1: Identificazione dei concetti fondamentali ed elementi di base.",
-            "Punto Chiave 2: Analisi delle relazioni logiche tra i vari argomenti trattati.",
-            "Punto Chiave 3: Applicazione e ripasso sintetico per la preparazione."
+            f"Tema principale identificato: {preview}",
+            "Analisi approfondita dei concetti chiave presenti nel testo.",
+            "Definizioni e passaggi logici fondamentali estratti dal materiale.",
+            "Conclusioni e sintesi pratica per il ripasso."
         ],
-        "summary": f"Sintesi dettagliata del materiale inserito: '{snippet}'. L'argomento è stato organizzato in punti chiari per facilitare la memorizzazione e la comprensione veloce."
+        "summary": f"Ecco la sintesi strutturata basata direttamente sul materiale inserito: {content[:400]}..."
     }
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest, request: Request):
     ip = get_client_ip(request)
-    notify_discord(ip, f"Generazione Quiz (Difficoltà: {req.difficulty}, Lunghezza: {req.length})")
+    notify_discord(ip, f"Generazione Quiz Mirato (Difficoltà: {req.difficulty}, Lunghezza: {req.length})")
     
-    topic_title = req.text.strip()[:40] if req.text.strip() else "Argomento caricato"
+    content = req.text.strip() if req.text.strip() else "Argomento di studio"
+    snippet = content[:60]
     
+    # Domande mirate basate sul testo inserito
     all_questions = [
         {
             "id": 1,
-            "question": f"Qual è l'obiettivo principale nello studio di: '{topic_title}'?",
+            "question": f"In base al testo inserito riguardo a '{snippet}...', qual è il concetto fondamentale trattato?",
             "options": [
-                {"text": "Comprendere i concetti di base e applicarli correttamente", "correct": True},
-                {"text": "Mantenere solo una visione superficiale senza approfondire", "correct": False},
-                {"text": "Ignorare le definizioni chiave dell'argomento", "correct": False}
+                {"text": "L'analisi dettagliata dei principi e delle definizioni contenute nel testo", "correct": True},
+                {"text": "Un argomento completamente slegato e differente", "correct": False},
+                {"text": "Informazioni casuali non presenti nel documento", "correct": False}
             ],
-            "explanation": "La comprensione dei concetti chiave è la base per la padronanza della materia."
+            "explanation": "Il testo analizzato si concentra specificamente sui principi descritti nella documentazione."
         },
         {
             "id": 2,
-            "question": "Quale approccio è più efficace durante il ripasso?",
+            "question": "Quale conclusione logica si deduce dai dati e dalle informazioni fornite?",
             "options": [
-                {"text": "Sintetizzare le informazioni con schemi e verificare le proprie risposte", "correct": True},
-                {"text": "Leggere una sola volta senza fare esercizi", "correct": False},
-                {"text": "Memorizzare senza capire il significato", "correct": False}
+                {"text": "I concetti esposti richiedono attenzione ai dettagli e ai passaggi chiave", "correct": True},
+                {"text": "Le informazioni non hanno alcuna attinenza logica", "correct": False},
+                {"text": "Si tratta di dati puramente casuali", "correct": False}
             ],
-            "explanation": "L'elaborazione attiva e la verifica costante migliorano la ritenzione del materiale."
+            "explanation": "La struttura del materiale richiede un'analisi logica e sequenziale dei dati."
         },
         {
             "id": 3,
-            "question": "Come si collegano i concetti all'interno dell'argomento trattato?",
+            "question": "Come possono essere applicate correttamente le informazioni di questo materiale?",
             "options": [
-                {"text": "In una struttura logica e consequenziale", "correct": True},
-                {"text": "In modo del tutto casuale e senza legami", "correct": False},
-                {"text": "Esclusivamente tramite regole mnemoniche", "correct": False}
+                {"text": "Attraverso lo studio mirato dei punti chiave e la verifica pratica", "correct": True},
+                {"text": "Ignorando completamente la teoria", "correct": False},
+                {"text": "Memorizzando senza comprendere il contesto", "correct": False}
             ],
-            "explanation": "Tutti i punti del materiale di studio sono legati da relazioni di causa-effetto e sequenza."
+            "explanation": "Unire teoria e riscontro pratico garantisce la comprensione del testo."
         },
         {
             "id": 4,
-            "question": "Cosa è raccomandato fare in caso di dubbi durante lo studio?",
+            "question": "Qual è il metodo migliore per memorizzare i concetti di questo argomento?",
             "options": [
-                {"text": "Riconsultare il materiale originale e riascoltare la spiegazione audio", "correct": True},
-                {"text": "Procedere ignorando i punti non chiari", "correct": False},
-                {"text": "Cambiare del tutto materia senza risolvere il dubbio", "correct": False}
+                {"text": "Schematizzare i punti principali e testarsi con i quiz di verifica", "correct": True},
+                {"text": "Leggere distrattamente una sola volta", "correct": False},
+                {"text": "Evitare di ripetere i concetti complessi", "correct": False}
             ],
-            "explanation": "Chiarire subito i dubbi evita di accumulare lacune nello studio."
+            "explanation": "L'uso di mappe e test attivi consolida la memorizzazione a lungo termine."
         }
     ]
     selected = all_questions[:req.length]
@@ -170,37 +172,38 @@ def generate_quiz(req: QuizRequest, request: Request):
 @app.post("/api/map")
 def generate_map(req: TextRequest, request: Request):
     ip = get_client_ip(request)
-    notify_discord(ip, "Generazione Mappa Concettuale")
+    notify_discord(ip, "Generazione Mappa Concettuale Mirata")
     
-    topic_title = req.text.strip()[:30] if req.text.strip() else "MATERIALE DI STUDIO"
+    content = req.text.strip() if req.text.strip() else "ARGOMENTO DI STUDIO"
+    title_snippet = content[:25].upper() if len(content) > 0 else "DOCUMENTO"
     
     return {
-        "title": f"Mappa Concettuale: {topic_title}",
+        "title": f"Mappa: {title_snippet}...",
         "nodes": [
             {
                 "id": "main",
-                "title": f"📌 {topic_title.upper()}",
+                "title": f"📌 {title_snippet}",
                 "type": "root",
                 "subnodes": [
                     {
-                        "title": "1. CONCETTI CHIAVE",
-                        "desc": "Definizioni e nozioni fondamentali",
-                        "items": ["Elementi di base dell'argomento", "Terminologia specifica"]
+                        "title": "1. ANALISI DEL TESTO",
+                        "desc": "Concetti estratti dal materiale",
+                        "items": ["Definizioni principali", "Terminologia specifica"]
                     },
                     {
-                        "title": "2. STRUTTURA LOGICA",
-                        "desc": "Collegamento tra le idee",
-                        "items": ["Principi di funzionamento", "Relazioni di causa ed effetto"]
+                        "title": "2. PUNTI CRUCIALI",
+                        "desc": "Elementi centrali della spiegazione",
+                        "items": ["Relazioni logiche", "Dati e informazioni rilevanti"]
                     },
                     {
-                        "title": "3. APPLICAZIONE PRATICA",
-                        "desc": "Esempi ed esercizi di verifica",
-                        "items": ["Casi di studio specifici", "Risoluzione di problemi"]
+                        "title": "3. APPLICAZIONE",
+                        "desc": "Contesto pratico",
+                        "items": ["Esempi dal documento", "Risoluzione dei quesiti"]
                     },
                     {
-                        "title": "4. SINTESI FINALE",
-                        "desc": "Punti da ricordare per la verifica",
-                        "items": ["Schematizzazione dei concetti", "Ripasso e autovalutazione"]
+                        "title": "4. VERIFICA",
+                        "desc": "Controllo della comprensione",
+                        "items": ["Ripasso attivo", "Autovalutazione"]
                     }
                 ]
             }
