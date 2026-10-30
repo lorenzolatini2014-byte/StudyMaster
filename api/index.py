@@ -16,6 +16,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class QuizRequest(BaseModel):
+    text: str
+    difficulty: str = "medio"
+    length: int = 3
+
 class TextRequest(BaseModel):
     text: str
 
@@ -45,7 +50,6 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/api/podcast")
 def generate_podcast(req: TextRequest):
     src = req.text.strip() if req.text.strip() else "Tabelline e concetti di aritmetica di base."
-    
     script = (
         "Benvenuti a questa lezione speciale di StudyMaster dedicata alla memorizzazione e alla comprensione profonda delle tabelline! "
         "Spesso le tabelline vengono viste come un esercizio faticoso da imparare a memoria, ma in realtà racchiudono una straordinaria armonia di schemi e regole matematiche. "
@@ -75,33 +79,53 @@ def generate_summary(req: TextRequest):
     }
 
 @app.post("/api/quiz")
-def generate_quiz(req: TextRequest):
-    return {
-        "questions": [
-            {
-                "id": 1,
-                "question": "Quanto fa 9 x 4 e qual è la regola per la tabellina del 9?",
-                "options": [
-                    "A) 36 (la somma delle cifre 3 + 6 fa 9)",
-                    "B) 32 (la somma delle cifre è pari)",
-                    "C) 40 (si aggiunge solo uno zero)"
-                ],
-                "correct": "A",
-                "explanation": "9 x 4 = 36. Inoltre, 3 + 6 = 9, confermando la regola della tabellina del 9."
-            },
-            {
-                "id": 2,
-                "question": "Cosa afferma la proprietà commutativa della moltiplicazione?",
-                "options": [
-                    "A) Se cambi l'ordine dei numeri il risultato non cambia (es. 5x2 = 2x5)",
-                    "B) Bisogna sempre sommare 1 al risultato",
-                    "C) Funziona solo con la tabellina del 10"
-                ],
-                "correct": "A",
-                "explanation": "La proprietà commutativa garantisce che a x b = b x a."
-            }
-        ]
-    }
+def generate_quiz(req: QuizRequest):
+    # Genera quiz dinamico in base a difficoltà e lunghezza scelte
+    all_questions = [
+        {
+            "id": 1,
+            "question": "Quanto fa 9 x 4 e qual è la regola per la tabellina del 9?",
+            "options": [
+                {"text": "36 (la somma delle cifre 3 + 6 fa 9)", "correct": True},
+                {"text": "32 (la somma delle cifre è pari)", "correct": False},
+                {"text": "40 (si aggiunge solo uno zero)", "correct": False}
+            ],
+            "explanation": "9 x 4 = 36. Inoltre, 3 + 6 = 9, confermando la regola della tabellina del 9."
+        },
+        {
+            "id": 2,
+            "question": "Cosa afferma la proprietà commutativa della moltiplicazione?",
+            "options": [
+                {"text": "Se cambi l'ordine dei numeri il risultato non cambia (es. 5x2 = 2x5)", "correct": True},
+                {"text": "Bisogna sempre sommare 1 al risultato", "correct": False},
+                {"text": "Funziona solo con la tabellina del 10", "correct": False}
+            ],
+            "explanation": "La proprietà commutativa garantisce che a x b = b x a."
+        },
+        {
+            "id": 3,
+            "question": "Come terminano sempre i prodotti della tabellina del 5?",
+            "options": [
+                {"text": "Sempre con un numero dispari", "correct": False},
+                {"text": "Sempre con la cifra 0 oppure 5", "correct": True},
+                {"text": "Sempre con il numero 2", "correct": False}
+            ],
+            "explanation": "I multipli di 5 finiscono sempre alternativamente in 0 o in 5."
+        },
+        {
+            "id": 4,
+            "question": "Che cos'è in realtà la moltiplicazione?",
+            "options": [
+                {"text": "Un'addizione ripetuta", "correct": True},
+                {"text": "Una sottrazione complessa", "correct": False},
+                {"text": "Una divisione inversa", "correct": False}
+            ],
+            "explanation": "La moltiplicazione abbreviata calcola un'addizione ripetuta dello stesso numero."
+        }
+    ]
+    
+    selected = all_questions[:req.length]
+    return {"questions": selected}
 
 @app.post("/api/map")
 def generate_map(req: TextRequest):
