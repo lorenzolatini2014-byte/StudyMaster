@@ -59,9 +59,8 @@ def call_gemini_api(prompt: str) -> str:
     if not GEMINI_API_KEY:
         return "⚠️ Errore: GEMINI_API_KEY non configurata su Vercel."
     
-    # Proviamo i modelli più stabili in sequenza finché uno non risponde
-    models_to_try = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"]
-    
+    # Endpoint ufficiale v1 con gemini-1.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{
@@ -69,20 +68,15 @@ def call_gemini_api(prompt: str) -> str:
         }]
     }
     
-    last_error = ""
-    for model in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            res_data = response.json()
-            if "candidates" in res_data:
-                return res_data["candidates"][0]["content"]["parts"][0]["text"]
-            else:
-                last_error = json.dumps(res_data)
-        except Exception as e:
-            last_error = str(e)
-            
-    return f"Errore di connessione a Gemini (tutti i modelli falliti): {last_error}"
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        res_data = response.json()
+        if "candidates" in res_data:
+            return res_data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            return f"Errore Gemini: {json.dumps(res_data)}"
+    except Exception as e:
+        return f"Errore di connessione a Gemini: {str(e)}"
 
 @app.get("/api/health")
 def health(request: Request):
