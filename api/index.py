@@ -19,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Il tuo Webhook di Discord inserito correttamente
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh"
 
 class QuizRequest(BaseModel):
@@ -107,4 +106,94 @@ def generate_summary(req: TextRequest, request: Request):
         "key_points": [
             "La moltiplicazione è un'addizione ripetuta.",
             "Proprietà commutativa: l'ordine dei fattori non cambia il prodotto (es. 3x4 = 4x3).",
-            "Regola del 5: i risultati terminano sempre con
+            "Regola del 5: i risultati terminano sempre con 0 o 5.",
+            "Trucco del 9: la somma delle cifre di ogni prodotto fa sempre 9 (es. 9x3=27 -> 2+7=9)."
+        ],
+        "summary": f"Sintesi del materiale caricato ({src[:150]}...): Le tabelline si basano su schemi logici e simmetrie che semplificano il calcolo a mente."
+    }
+
+@app.post("/api/quiz")
+def generate_quiz(req: QuizRequest, request: Request):
+    ip = get_client_ip(request)
+    notify_discord(ip, f"Generazione Quiz (Difficoltà: {req.difficulty}, Lunghezza: {req.length})")
+    all_questions = [
+        {
+            "id": 1,
+            "question": "Quanto fa 9 x 4 e qual è la regola per la tabellina del 9?",
+            "options": [
+                {"text": "36 (la somma delle cifre 3 + 6 fa 9)", "correct": True},
+                {"text": "32 (la somma delle cifre è pari)", "correct": False},
+                {"text": "40 (si aggiunge solo uno zero)", "correct": False}
+            ],
+            "explanation": "9 x 4 = 36. Inoltre, 3 + 6 = 9, confermando la regola della tabellina del 9."
+        },
+        {
+            "id": 2,
+            "question": "Cosa afferma la proprietà commutativa della moltiplicazione?",
+            "options": [
+                {"text": "Se cambi l'ordine dei numeri il risultato non cambia (es. 5x2 = 2x5)", "correct": True},
+                {"text": "Bisogna sempre sommare 1 al risultato", "correct": False},
+                {"text": "Funziona solo con la tabellina del 10", "correct": False}
+            ],
+            "explanation": "La proprietà commutativa garantisce che a x b = b x a."
+        },
+        {
+            "id": 3,
+            "question": "Come terminano sempre i prodotti della tabellina del 5?",
+            "options": [
+                {"text": "Sempre con un numero dispari", "correct": False},
+                {"text": "Sempre con la cifra 0 oppure 5", "correct": True},
+                {"text": "Sempre con il numero 2", "correct": False}
+            ],
+            "explanation": "I multipli di 5 finiscono sempre alternativamente in 0 o in 5."
+        },
+        {
+            "id": 4,
+            "question": "Che cos'è in realtà la moltiplicazione?",
+            "options": [
+                {"text": "Un'addizione ripetuta", "correct": True},
+                {"text": "Una sottrazione complessa", "correct": False},
+                {"text": "Una divisione inversa", "correct": False}
+            ],
+            "explanation": "La moltiplicazione abbreviata calcola un'addizione ripetuta dello stesso numero."
+        }
+    ]
+    selected = all_questions[:req.length]
+    return {"questions": selected}
+
+@app.post("/api/map")
+def generate_map(req: TextRequest, request: Request):
+    ip = get_client_ip(request)
+    notify_discord(ip, "Generazione Mappa Concettuale")
+    return {
+        "title": "Mappa Concettuale: Le Tabelline",
+        "nodes": [
+            {
+                "id": "main",
+                "title": "📐 LE TABELLINE",
+                "type": "root",
+                "subnodes": [
+                    {
+                        "title": "1. CONCETTO BASE",
+                        "desc": "Addizione ripetuta dello stesso numero",
+                        "items": ["Es: 3 x 4 = 3 + 3 + 3 + 3 = 12", "Fattore x Fattore = Prodotto"]
+                    },
+                    {
+                        "title": "2. PROPRIETÀ COMMUTATIVA",
+                        "desc": "Cambiare l'ordine non altera il prodotto",
+                        "items": ["a x b = b x a", "Dimezza i calcoli da imparare (es. 7x8 = 8x7)"]
+                    },
+                    {
+                        "title": "3. TABELLINE FACILI",
+                        "desc": "Regole immediate da memorizzare",
+                        "items": ["Tabellina del 2: Raddoppio dei numeri", "Tabellina del 5: Finisce sempre per 0 o 5", "Tabellina del 10: Aggiungi uno zero finale"]
+                    },
+                    {
+                        "title": "4. TRUCCHI AVANZATI (9)",
+                        "desc": "Schema matematico del 9",
+                        "items": ["Somma cifre risultato sempre 9 (9x3=27 -> 2+7=9)", "Uso delle 10 dita delle mani"]
+                    }
+                ]
+            }
+        ]
+    }
