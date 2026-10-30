@@ -57,7 +57,7 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     elif ext in ["txt", "md"]:
         return file_bytes.decode("utf-8", errors="ignore")
     else:
-        return f"[File {filename} caricato]"
+        return f"Argomento tratto dal file multimediale: {filename}. Spiega approfonditamente i concetti chiave legati a questo titolo."
 
 @app.get("/api/health")
 def health(request: Request):
@@ -77,50 +77,56 @@ async def upload_file(file: UploadFile = File(...), request: Request = None):
 @app.post("/api/podcast")
 def generate_podcast(req: TextRequest, request: Request):
     notify_discord(get_client_ip(request), "Generazione Podcast con Gemini")
+    user_input = req.text.strip() if req.text.strip() else "Concetti generali di studio"
+    
     if not GEMINI_API_KEY:
         return {"script": "⚠️ Errore: Configura la GEMINI_API_KEY su Vercel."}
     
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = f"""Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata ESATTAMENTE su questo materiale di studio:\n\n{req.text}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti tratti dal testo, spiega i concetti chiave in modo discorsivo ed esaustivo. Deve essere una spiegazione completa e di alto livello per aiutare lo studente."""
-    response = model.generate_content(prompt)
-    return {"script": response.text}
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt = f"""Agisci come un tutor esperto, chiaro ed entusiasta. Crea una lezione vocale dettagliata, approfondita e strutturata (podcast) basata su questo argomento o materiale:\n\n{user_input}\n\nSpiega passo dopo passo come funziona l'argomento, fai esempi concreti, spiega i concetti chiave in modo discorsivo ed esaustivo. Deve essere una spiegazione completa di alto livello."""
+        response = model.generate_content(prompt)
+        return {"script": response.text}
+    except Exception as e:
+        return {"script": f"Errore nella generazione con l'IA: {str(e)}"}
 
 @app.post("/api/summary")
 def generate_summary(req: TextRequest, request: Request):
     notify_discord(get_client_ip(request), "Generazione Riassunto con Gemini")
+    user_input = req.text.strip() if req.text.strip() else "Argomento di studio"
+    
     if not GEMINI_API_KEY:
         return {"title": "Errore", "key_points": [], "summary": "GEMINI_API_KEY mancante."}
     
     try:
         json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
-        prompt = f"""Analizza questo materiale di studio e crea un riassunto approfondito. Restituisci la risposta in formato JSON con queste chiavi esatte:
+        prompt = f"""Analizza questo testo/argomento e crea un riassunto approfondito. Restituisci un JSON con queste chiavi esatte:
         {{
           "title": "Titolo chiaro dell'argomento",
-          "key_points": ["Punto chiave 1 dettagliato", "Punto chiave 2 dettagliato", "Punto chiave 3 dettagliato", "Punto chiave 4 dettagliato"],
-          "summary": "Una spiegazione discorsiva e dettagliata del testo"
+          "key_points": ["Punto chiave 1", "Punto chiave 2", "Punto chiave 3", "Punto chiave 4"],
+          "summary": "Una spiegazione discorsiva e dettagliata"
         }}
-        Materiale:\n{req.text}"""
+        Testo:\n{user_input}"""
         res = json_model.generate_content(prompt)
         return json.loads(res.text)
     except Exception as e:
-        model = genai.GenerativeModel("gemini-1.5-flash")
         return {
             "title": "Riassunto Studio",
-            "key_points": ["Analisi dei concetti principali del documento."],
-            "summary": model.generate_content(f"Riassumi questo testo:\n{req.text}").text
+            "key_points": ["Analisi dei concetti principali."],
+            "summary": f"Errore IA: {str(e)}"
         }
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest, request: Request):
-    notify_discord(get_client_ip(request), f"Generazione Quiz Gemini (Difficoltà: {req.difficulty}, N: {req.length})")
+    notify_discord(get_client_ip(request), f"Generazione Quiz Gemini")
+    user_input = req.text.strip() if req.text.strip() else "Argomento generale"
+    
     if not GEMINI_API_KEY:
         return {"questions": []}
     
-    diff_str = {"1": "facile", "2": "medio", "3": "difficile"}.get(str(req.difficulty), "medio")
-    
     try:
         json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
-        prompt = f"""Crea esattamente {req.length} domande di verifica a scelta multipla basate RIGOROSAMENTE sul testo fornito sotto. Livello di difficoltà: {diff_str}.
+        prompt = f"""Crea esattamente {req.length} domande di verifica a scelta multipla basate su questo argomento: '{user_input}'.
         Restituisci la risposta in formato JSON (un array JSON puro) con questo schema esatto:
         [
           {{
@@ -131,26 +137,25 @@ def generate_quiz(req: QuizRequest, request: Request):
               {{"text": "Opzione corretta", "correct": true}},
               {{"text": "Altra opzione errata", "correct": false}}
             ],
-            "explanation": "Spiegazione dettagliata della risposta corretta."
+            "explanation": "Spiegazione dettagliata."
           }}
-        ]
-        Testo di riferimento:\n{req.text}"""
-        
+        ]"""
         res = json_model.generate_content(prompt)
-        questions = json.loads(res.text)
-        return {"questions": questions}
+        return {"questions": json.loads(res.text)}
     except Exception as e:
-        return {"questions": [{"id": 1, "question": "Errore nella generazione del quiz dall'IA.", "options": [{"text": "Riprova", "correct": true}], "explanation": str(e)}]}
+        return {"questions": [{"id": 1, "question": "Errore generazione quiz.", "options": [{"text": "Riprova", "correct": true}], "explanation": str(e)}]}
 
 @app.post("/api/map")
 def generate_map(req: TextRequest, request: Request):
     notify_discord(get_client_ip(request), "Generazione Mappa con Gemini")
+    user_input = req.text.strip() if req.text.strip() else "ARGOMENTO"
+    
     if not GEMINI_API_KEY:
         return {"title": "Errore", "nodes": []}
     
     try:
         json_model = genai.GenerativeModel("gemini-1.5-flash", generation_config={"response_mime_type": "application/json"})
-        prompt = f"""Crea una struttura per una mappa concettuale basata su questo testo. Restituisci un JSON con questo schema esatto:
+        prompt = f"""Crea una struttura per una mappa concettuale basata su: '{user_input}'. Restituisci un JSON con questo schema esatto:
         {{
           "title": "Titolo della Mappa",
           "nodes": [
@@ -161,15 +166,13 @@ def generate_map(req: TextRequest, request: Request):
               "subnodes": [
                 {{
                   "title": "Sotto-argomento 1",
-                  "desc": "Descrizione del nodo",
+                  "desc": "Descrizione",
                   "items": ["Concetto a", "Concetto b"]
                 }}
               ]
             }}
           ]
-        }}
-        Testo di riferimento:\n{req.text}"""
-        
+        }}"""
         res = json_model.generate_content(prompt)
         return json.loads(res.text)
     except Exception as e:
@@ -179,6 +182,6 @@ def generate_map(req: TextRequest, request: Request):
                 "id": "main",
                 "title": "ARGOMENTO",
                 "type": "root",
-                "subnodes": [{"title": "Errore", "desc": "Impossibile generare la mappa", "items": [str(e)]}]
+                "subnodes": [{"title": "Errore", "desc": "Impossibile generare", "items": [str(e)]}]
             }]
         }
