@@ -33,7 +33,7 @@ def notify_discord(ip: str, action: str):
     if not DISCORD_WEBHOOK_URL:
         return
     now = datetime.now().strftime("%d/%m/%Y alle %H:%M:%S")
-    message = {"content": f"🚨 **StudyMaster Attività (Groq Mixtral):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
+    message = {"content": f"🚨 **StudyMaster Attività (Groq):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=3)
     except:
@@ -61,22 +61,34 @@ def call_groq_api(prompt: str) -> str:
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
-    payload = {
-        "model": "mixtral-8x7b-32768",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.7,
-        "max_tokens": 2048
-    }
     
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=25)
-        res_data = response.json()
-        if "choices" in res_data:
-            return res_data["choices"][0]["message"]["content"]
-        else:
-            return f"Errore Groq: {json.dumps(res_data)}"
-    except Exception as e:
-        return f"Errore di connessione a Groq: {str(e)}"
+    # Lista di modelli con fallback automatico: se uno fallisce, prova il successivo all'istante
+    models = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "gemma2-9b-it",
+        "llama3-70b-8192"
+    ]
+    
+    last_error = ""
+    for model_name in models:
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7,
+            "max_tokens": 2048
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=20)
+            res_data = response.json()
+            if "choices" in res_data:
+                return res_data["choices"][0]["message"]["content"]
+            else:
+                last_error = json.dumps(res_data)
+        except Exception as e:
+            last_error = str(e)
+            
+    return f"Errore Groq: {last_error}"
 
 @app.get("/api/health")
 def health(request: Request):
