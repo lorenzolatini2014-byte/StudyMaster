@@ -20,6 +20,9 @@ app.add_middleware(
 
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1565779785685278747/3bvQzWHwVV-XCDlZqiukl0TTziWND2_woOj17fkfgnvVZ6uJIojHsrq_4xIKZDaPBLfh")
 
+# Inserisci qui la chiave OpenRouter che hai appena generato
+OPENROUTER_API_KEY = "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"
+
 class QuizRequest(BaseModel):
     text: str
     difficulty: str = "2"
@@ -32,7 +35,7 @@ def notify_discord(ip: str, action: str):
     if not DISCORD_WEBHOOK_URL:
         return
     now = datetime.now().strftime("%d/%m/%Y alle %H:%M:%S")
-    message = {"content": f"🚨 **StudyMaster Attività (AI Nativa):**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
+    message = {"content": f"🚨 **StudyMaster Attività:**\n📅 `{now}`\n🌐 IP: `{ip}`\n⚡ Azione: `{action}`"}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=message, timeout=3)
     except:
@@ -54,33 +57,34 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     else:
         return f"Argomento di studio: {filename}. Analisi approfondita dei concetti chiave."
 
-def call_free_ai(prompt: str) -> str:
-    # Usiamo un endpoint pubblico e gratuito per l'inferenza di modelli open source
-    url = "https://api-inference.huggingface.co/models/google/gemma-2-9b-it"
-    payload = {
-        "inputs": prompt,
-        "parameters": {"max_new_tokens": 1024, "temperature": 0.7}
+def call_real_ai(prompt: str) -> str:
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://study-master.vercel.app",
+        "X-Title": "StudyMaster"
     }
+    payload = {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7
+    }
+    
     try:
-        response = requests.post(url, json=payload, timeout=20)
+        response = requests.post(url, headers=headers, json=payload, timeout=25)
         res_data = response.json()
-        if isinstance(res_data, list) and len(res_data) > 0 and "generated_text" in res_data[0]:
-            # Pulisce il prompt ripetuto dal modello se presente
-            full_text = res_data[0]["generated_text"]
-            if prompt in full_text:
-                return full_text.replace(prompt, "").strip()
-            return full_text
-        elif isinstance(res_data, dict) and "generated_text" in res_data:
-            return res_data["generated_text"].replace(prompt, "").strip()
+        if "choices" in res_data and len(res_data["choices"]) > 0:
+            return res_data["choices"][0]["message"]["content"]
         else:
-            return f"Analisi completata basata sul testo fornito per il materiale di studio."
+            return f"Risposta elaborata dal sistema basata sul testo fornito."
     except Exception as e:
-        return f"Elaborazione effettuata con successo sul testo inserito."
+        return f"Errore di connessione all'IA: {str(e)}"
 
 @app.get("/api/health")
 def health(request: Request):
     notify_discord(get_client_ip(request), "Visita Sito")
-    return {"status": "ok", "app": "StudyMaster AI Free"}
+    return {"status": "ok", "app": "StudyMaster Real AI"}
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...), request: Request = None):
@@ -94,66 +98,65 @@ async def upload_file(file: UploadFile = File(...), request: Request = None):
 
 @app.post("/api/podcast")
 def generate_podcast(req: TextRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Podcast AI")
+    notify_discord(get_client_ip(request), "Generazione Podcast IA")
     user_input = req.text.strip() if req.text.strip() else "Concetti generali"
-    prompt = f"Crea una spiegazione dettagliata sotto forma di podcast in italiano basata su questo testo: {user_input}"
-    script = call_free_ai(prompt)
+    prompt = f"Agisci come un tutor esperto. Crea una spiegazione dettagliata e discorsiva sotto forma di lezione audio/podcast in italiano basata su questo materiale:\n\n{user_input}"
+    script = call_real_ai(prompt)
     return {"script": script}
 
 @app.post("/api/summary")
 def generate_summary(req: TextRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Riassunto AI")
+    notify_discord(get_client_ip(request), "Generazione Riassunto IA")
     user_input = req.text.strip() if req.text.strip() else "Argomento"
-    
-    prompt = f"Crea un riassunto dettagliato di questo testo e restituisci SOLO un JSON con chiavi esatte 'title', 'key_points' (array di stringhe) e 'summary': {user_input}"
-    res_text = call_free_ai(prompt)
+    prompt = f"Analizza questo testo e crea un riassunto approfondito. Restituisci SOLO un oggetto JSON valido (senza markdown) con esattamente queste chiavi: {{\"title\": \"Titolo chiaro\", \"key_points\": [\"Punto 1\", \"Punto 2\", \"Punto 3\", \"Punto 4\"], \"summary\": \"Spiegazione dettagliata\"}}\n\nTesto:\n{user_input}"
+    res_text = call_real_ai(prompt)
     
     try:
         clean_json = res_text.replace("```json", "").replace("```", "").strip()
-        # Cerca le parentesi graffe del JSON nel testo generato dall'IA
         start = clean_json.index("{")
         end = clean_json.rindex("}") + 1
         return json.loads(clean_json[start:end])
     except:
         return {
-            "title": "Riassunto Intelligente",
-            "key_points": ["Analisi del testo", "Concetti chiave estratti"],
-            "summary": res_text if len(res_text) > 20 else f"Studio approfondito basato su: {user_input[:500]}"
+            "title": "Riassunto di Studio",
+            "key_points": ["Analisi dei concetti principali", "Estrazione dei dati chiave"],
+            "summary": res_text
         }
 
 @app.post("/api/quiz")
 def generate_quiz(req: QuizRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Quiz AI")
+    notify_discord(get_client_ip(request), "Generazione Quiz IA")
     user_input = req.text.strip() if req.text.strip() else "Quiz generale"
+    prompt = f"Crea esattamente {req.length} domande a scelta multipla basate su questo testo: '{user_input}'. Restituisci SOLO un array JSON puro (senza markdown) con questo schema esatto:\n[{{\"id\": 1, \"question\": \"Domanda...\", \"options\": [{{\"text\": \"Errata\", \"correct\": false}}, {{\"text\": \"Corretta\", \"correct\": true}}], \"explanation\": \"Spiegazione\"}}]"
+    res_text = call_real_ai(prompt)
     
-    return {
-        "questions": [
-            {
-                "id": 1,
-                "question": f"Qual è il focus principale di questo argomento: {user_input[:30]}...?",
-                "options": [
-                    {"text": "L'analisi approfondita dei concetti chiave", "correct": True},
-                    {"text": "Un dettaglio marginale", "correct": False},
-                    {"text": "Nessuna correlazione", "correct": False}
-                ],
-                "explanation": "L'IA ha strutturato la domanda direttamente sul materiale fornito."
-            }
-        ]
-    }
+    try:
+        clean_json = res_text.replace("```json", "").replace("```", "").strip()
+        start = clean_json.index("[")
+        end = clean_json.rindex("]") + 1
+        return {"questions": json.loads(clean_json[start:end])}
+    except:
+        return {"questions": [{"id": 1, "question": "Verifica di comprensione del testo.", "options": [{"text": "Risposta corretta basata sul materiale", "correct": True}], "explanation": res_text}]}
 
 @app.post("/api/map")
 def generate_map(req: TextRequest, request: Request):
-    notify_discord(get_client_ip(request), "Generazione Mappa AI")
+    notify_discord(get_client_ip(request), "Generazione Mappa IA")
     user_input = req.text.strip() if req.text.strip() else "Mappa"
-    return {
-        "title": "Mappa Concettuale AI",
-        "nodes": [{
-            "id": "main",
-            "title": "ARGOMENTO PRINCIPALE",
-            "type": "root",
-            "subnodes": [
-                {"title": "Analisi Testuale", "desc": "Estratto dall'IA", "items": [user_input[:50], "Punti chiave"]},
-                {"title": "Sviluppo", "desc": "Approfondimento", "items": ["Concetti", "Applicazioni"]}
-            ]
-        }]
-    }
+    prompt = f"Crea una struttura per una mappa concettuale basata su: '{user_input}'. Restituisci SOLO un JSON puro (senza markdown) con questo schema:\n{{\"title\": \"Titolo\", \"nodes\": [{{\"id\": \"main\", \"title\": \"PRINCIPALE\", \"type\": \"root\", \"subnodes\": [{{\"title\": \"Sotto 1\", \"desc\": \"Desc\", \"items\": [\"a\", \"b\"]}}]}}]}}"
+    res_text = call_real_ai(prompt)
+    
+    try:
+        clean_json = res_text.replace("```json", "").replace("```", "").strip()
+        start = clean_json.index("{")
+        end = clean_json.rindex("}") + 1
+        return json.loads(clean_json[start:end])
+    except:
+        return {
+            "title": "Mappa Concettuale",
+            "nodes": [{
+                "id": "main",
+                "title": "ARGOMENTO PRINCIPALE",
+                "type": "root",
+                "subnodes": [{"title": "Analisi", "desc": "Contenuto generato", "items": [res_text[:100]]}]
+            }]
+        }
